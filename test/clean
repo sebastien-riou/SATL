@@ -1,0 +1,5 @@
+#!/bin/sh
+
+rm -rf ./pysatl/__pycache__
+cd basic
+./clean

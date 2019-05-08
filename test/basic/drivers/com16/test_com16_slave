@@ -1,0 +1,10 @@
+#!/bin/sh
+
+#stop at first error
+set -e
+
+./build
+
+../../bin/com16/slave_com16 $* &
+sleep 0.5
+../../../satl_test.py master 0 2 2 1 $1 $4 &

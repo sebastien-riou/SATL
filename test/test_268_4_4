@@ -1,0 +1,3 @@
+#!/bin/sh
+
+./test_symmetric_case 268 4 4 $*

@@ -1,0 +1,5 @@
+#!/bin/sh
+
+./satl_test.py slave $* &
+sleep 1
+./satl_test.py master $*

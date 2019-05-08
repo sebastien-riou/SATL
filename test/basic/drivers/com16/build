@@ -1,0 +1,9 @@
+#!/bin/sh
+
+#stop at first error
+set -e
+BIN=../../bin/com16
+mkdir -p $BIN
+
+gcc -std=c99 -I . -DCOM16_EMU ../../master.c ./com16_emu.c -o $BIN/master_com16
+gcc -std=c99 -I . -DCOM16_EMU ../../slave.c ./com16_emu.c -o $BIN/slave_com16

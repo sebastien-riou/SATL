@@ -1,0 +1,10 @@
+#!/bin/sh
+
+#stop at first error
+set -e
+
+./build
+
+../../bin/com16/slave_com16 $* &
+sleep 0.5
+../../bin/com16/master_com16 $*
