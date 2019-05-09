@@ -12,19 +12,14 @@
 #include <assert.h>
 int sockfd = 0;
 
-/*
-void SATL_error_handler(){
-    printf("error handler\n");
-    exit(-1);
-}
-*/
-
 
 #define SATL_TEST_SLAVE
 #include "satl_test_com.h"
 
-SATL_ctx_t SATL_ctx;
+#define SATL_SOCKET_ONLY_CUSTOM_FUNCS
+#include "../../../../implementations/c99/basic/drivers/socket/satl_socket.h"
 
+SATL_ctx_t SATL_ctx;
 
 uint32_t tx_chunk_size=0;
 uint32_t rx_chunk_size=0;
@@ -77,27 +72,17 @@ int main(int argc, char *argv[]){
         refdatle[i] = i ^ 0xFF;
     }
 
-    int listenfd = 0;
-    struct sockaddr_in serv_addr;
+    SATL_socket_params_t params;
+    params.address=0;
+    params.port = port;
 
-    char sendBuff[1025];
-    time_t ticks;
+    #ifndef SATL_TEST_SOCKET
+        sockfd = SATL_socket_slave_init(&params);
+        emu_init(&com_peripheral);
+    #else
+        memcpy(&com_peripheral,&params,sizeof(params));
+    #endif
 
-    listenfd = socket(AF_INET, SOCK_STREAM, 0);
-    memset(&serv_addr, '0', sizeof(serv_addr));
-    memset(sendBuff, '0', sizeof(sendBuff));
-
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    serv_addr.sin_port = htons(port);
-
-    bind(listenfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr));
-
-    listen(listenfd, 1);
-
-    sockfd = accept(listenfd, (struct sockaddr*)NULL, NULL);
-
-    emu_init(&com_peripheral);
     uint32_t mblen = SATL_slave_init(&SATL_ctx,&com_peripheral);
     if(SATL_ACK){
         assert(SATL_SBLEN==mblen);

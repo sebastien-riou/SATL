@@ -7,6 +7,9 @@ import os
 from threading import Thread
 import pprint
 
+import sys, os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__),'..', 'implementations', 'python3')))
+
 import pysatl
 
 
@@ -82,7 +85,9 @@ if sys.argv[1]=='slave':
     link = connection
     slave_com = pysatl.SocketComDriver(link,buffer_length,link_granularity,sfr_granularity,ack)
 
+    print("Slave connected")
     slave  = pysatl.PySatl(is_master=False,com_driver=slave_com,skip_init=skip_init)
+    print("Slave init done")
 
     #slave simply replying the incoming data, length of reply indicated by P1 P2
     while True:

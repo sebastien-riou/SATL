@@ -1,0 +1,10 @@
+#!/bin/sh
+
+#stop at first error
+set -e
+
+./build
+
+../../bin/socket/slave_socket $* &
+sleep 0.5
+../../bin/socket/master_socket $*

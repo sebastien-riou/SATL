@@ -11,23 +11,20 @@
 #include <assert.h>
 
 int sockfd = 0;
-/*
-void SATL_error_handler(){
-    printf("error handler\n");
-    exit(-1);
-}
-*/
+
 #define SATL_TEST_MASTER
 #include "satl_test_com.h"
 
-SATL_ctx_t SATL_ctx;
+#define SATL_SOCKET_ONLY_CUSTOM_FUNCS
+#include "../../../../implementations/c99/basic/drivers/socket/satl_socket.h"
 
 uint8_t refdat[(1<<16)+1];
 uint8_t refdatle[(1<<16)+1];
 
+SATL_ctx_t SATL_ctx;
+
 uint32_t tx_chunk_size=0;
 uint32_t rx_chunk_size=0;
-
 
 void master_tx_apdu(SATL_ctx_t*const ctx, SATL_capdu_header_t*hdr,uint32_t lc, uint32_t le, uint8_t*data){
     if(0==tx_chunk_size){
@@ -68,6 +65,8 @@ void master_rx_apdu(SATL_ctx_t*const ctx, uint32_t *le, void *const dat,SATL_rap
 
 void test_case(uint32_t lc, uint32_t le, uint32_t rle){
     //printf("lc=%u, le=%u, rle=%u\n",lc,le,rle);
+    //printf("refdatle[0]=%02x\n",refdatle[0]);
+
     assert(lc<=1<<16);
     assert(le<=1<<16);
     assert(rle<=le);
@@ -78,7 +77,13 @@ void test_case(uint32_t lc, uint32_t le, uint32_t rle){
     hdr.INS=rle>>16;
     hdr.P1 =rle>>8;
     hdr.P2 =rle;
+    /*for(unsigned int i=0;i<lc;i++){
+        printf("%02X ",buf[i]);
+    }
+    printf("\n");
+    printf("refdatle[0]=%02x\n",refdatle[0]);*/
     master_tx_apdu(&SATL_ctx, &hdr,lc,le,buf);
+    //printf("refdatle[0]=%02x\n",refdatle[0]);
     SATL_rapdu_sw_t sw;
     uint32_t actual_le=le;
     uint8_t buf2[(1<<16)+1];
@@ -87,18 +92,22 @@ void test_case(uint32_t lc, uint32_t le, uint32_t rle){
     assert(sw.SW1==0x90);
     assert(sw.SW2==0x00);
     uint32_t l = lc<rle ? lc : rle;
-    //printf("l=%u, rle=%u\n",l,rle);
-    //for(unsigned int i=0;i<actual_le;i++){
-    //    printf("%02X ",buf2[i]);
-    //}
-    //printf("\n");
+    /*printf("l=%u, rle=%u\n",l,rle);
+    for(unsigned int i=0;i<actual_le;i++){
+        printf("%02X ",buf2[i]);
+    }
+    printf("\n");*/
     assert(0==memcmp(buf,buf2,l));
     assert(0==memcmp(refdat,buf2,l));
+    //printf("refdatle[0]=%02x\n",refdatle[0]);
     assert(0==memcmp(refdatle,buf2+l,rle-l));
 }
 
 #define NUM_ELEMS(a) (sizeof(a)/sizeof 0[a])
 int main(int argc, char *argv[]){
+
+    //printf("sizeof(SATL_ctx)=%u\n",sizeof(SATL_ctx));
+
     unsigned int long_test=0;
     uint32_t port = 5000;
     if(argc>1) port = atoi(argv[1]);
@@ -110,31 +119,17 @@ int main(int argc, char *argv[]){
         refdat[i] = i;
         refdatle[i] = i ^ 0xFF;
     }
+    //printf("refdatle[0]=%02x\n",refdatle[0]);
+    SATL_socket_params_t params;
+    params.address="127.0.0.1";
+    params.port = port;
 
-    int n = 0;
-    char recvBuff[1024];
-    struct sockaddr_in serv_addr;
-
-    if((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-    {
-        printf("\n Error : Could not create socket \n");
-        return 1;
-    }
-    memset(&serv_addr, '0', sizeof(serv_addr));
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(port);
-    if(inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr)<=0)
-    {
-        printf("\n inet_pton error occured\n");
-        return 1;
-    }
-    if( connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
-    {
-       printf("\n Error : Connect Failed \n");
-       return 1;
-    }
-
-    emu_init(&com_peripheral);
+    #ifndef SATL_TEST_SOCKET
+        sockfd = SATL_socket_master_init(&params);
+        emu_init(&com_peripheral);
+    #else
+        memcpy(&com_peripheral,&params,sizeof(params));
+    #endif
     uint32_t sblen = SATL_master_init(&SATL_ctx,&com_peripheral);
     printf("Slave buffer size = %u\n",sblen);
     if(SATL_ACK){

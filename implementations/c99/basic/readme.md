@@ -142,6 +142,17 @@ in a separate header file.
     #define SATL_SUPPORT_SLAVE
     #define SATL_SUPPORT_MASTER
 
+## Define driver context structure
+All functions have a pointer on a "SATL_driver_ctx_t" as first argument. Your
+header file shall define this structure. For example, the "com16" driver defines
+it as follows:
+
+    typedef struct SATL_driver_ctx_struct_t {
+        COM16_t*hw;
+        uint16_t buf;
+        uint32_t buf_level;
+    } SATL_driver_ctx_t;
+
 ## Initialization functions
 There is two initialization function entry point to distinguish master and slave
 operations. They both take a pointer to an arbitrary structure to pass the

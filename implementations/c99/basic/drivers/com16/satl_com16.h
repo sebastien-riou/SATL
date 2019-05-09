@@ -17,9 +17,9 @@
 #define SATL_COM16 (ctx->hw)
 
 typedef struct SATL_driver_ctx_struct_t {
+    COM16_t*hw;
     uint16_t buf;
     uint32_t buf_level;
-    COM16_t*hw;
 } SATL_driver_ctx_t;
 
 static uint32_t SATL_get_rx_level(const SATL_driver_ctx_t *ctx){
