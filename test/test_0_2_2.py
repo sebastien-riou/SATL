@@ -2,4 +2,4 @@
 import sys, os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'utils')))
 from testbuilder import *
-test_symmetric_case(0,1,1,1)
+test_symmetric_case(0,2,2,1)

@@ -1,9 +1,0 @@
-#!/bin/sh
-
-#stop at first error
-set -e
-BIN=../../bin/socket
-mkdir -p $BIN
-
-gcc -std=c99 -fsanitize=address,undefined -I . ../../master.c -o $BIN/master_socket
-gcc -std=c99 -fsanitize=address,undefined -I . ../../slave.c  -o $BIN/slave_socket

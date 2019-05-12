@@ -6,6 +6,7 @@ import io
 import os
 from threading import Thread
 import pprint
+import time
 
 import sys, os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__),'..', 'implementations', 'python3')))
@@ -51,7 +52,7 @@ if len(sys.argv)>6:
     port = int(sys.argv[6])
 
 if len(sys.argv)>7:
-    long_test = bool(sys.argv[7])
+    long_test = sys.argv[7]=='1'
 
 if ack:
     assert(buffer_length>=4)
@@ -108,6 +109,8 @@ if sys.argv[1]=='slave':
         #print(response)
         slave.tx(response)
         if cmd.CLA == 0xFF:
+            time.sleep(1)
+            print("slave done")
             exit()
 
 else:
@@ -166,5 +169,6 @@ else:
     master.tx(pysatl.CAPDU(CLA=0xFF,INS=2,P1=3,P2=4))
     response = master.rx()
     print(response)
+    time.sleep(1)
     print("done")
     #input("Press enter to quit ")

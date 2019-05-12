@@ -1,47 +1,3 @@
-//#include <sys/socket.h>
-//#include <sys/types.h>
-//#include <netinet/in.h>
-//#include <netdb.h>
-//#include <arpa/inet.h>
-
-
-/*
-#if defined _WIN32
-#include <winsock2.h>
-#include <ws2tcpip.h>
-int inet_pton(int af, const char *src, void *dst)
-{
-  struct sockaddr_storage ss;
-  int size = sizeof(ss);
-  char src_copy[INET6_ADDRSTRLEN+1];
-
-  ZeroMemory(&ss, sizeof(ss));
-  strncpy (src_copy, src, INET6_ADDRSTRLEN+1);
-  src_copy[INET6_ADDRSTRLEN] = 0;
-
-  if (WSAStringToAddress(src_copy, af, NULL, (struct sockaddr *)&ss, &size) == 0) {
-    switch(af) {
-      case AF_INET:
-    *(struct in_addr *)dst = ((struct sockaddr_in *)&ss)->sin_addr;
-    return 1;
-      case AF_INET6:
-    *(struct in6_addr *)dst = ((struct sockaddr_in6 *)&ss)->sin6_addr;
-    return 1;
-    }
-  }
-  return 0;
-}
-void init_socket_api(void){
-    WSADATA mywsadata; //your wsadata struct, it will be filled by WSAStartup
-    WSAStartup(0x0202,&mywsadata); //0x0202 refers to version of sockets we want to use.
-}
-#else
-#define closesocket close
-#include <sys/socket.h>
-#include <arpa/inet.h>
-#include <unistd.h>
-#endif
-*/
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -240,6 +196,7 @@ int main(int argc, char *argv[]){
         assert(sw.SW1==0x90);
         assert(sw.SW2==0x00);
         assert(0==le);
+        sleep(1);
         printf("done\n");
     }
     return 0;

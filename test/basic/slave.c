@@ -126,8 +126,14 @@ int main(int argc, char *argv[]){
         }
         printf("\n");*/
         slave_tx_apdu(&SATL_ctx, le, data, &sw);
-        if(0xFF==hdr.CLA) break;
+        if(0xFF==hdr.CLA){
+            break;
+        }
     }
-
+    sleep(1);
+    //printf("closing socket\n");
     close(sockfd);
+    //printf("socket closed\n");
+    printf("slave done\n");
+    
 }
