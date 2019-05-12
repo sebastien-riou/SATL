@@ -17,15 +17,15 @@ Finally ISO7816-3, for historical reasons, is overly complicated and it is virtu
 
 ## Goals   
 * Simplicity / code size:
- * Simple specification allowing to exchange APDUs over any communication interface
- * No timeouts defined at transport level
+  * Simple specification allowing to exchange APDUs over any communication interface
+  * No timeouts defined at transport level
 * Versatility and minimal hardware requirement
- * use software flow control when hardware does not handle it
- * ability to deal with minimum transfer granularity
- * ability to deal with minimum read/write granularity of SFRs (APB granularity is 32 bit for example)
+  * use software flow control when hardware does not handle it
+  * ability to deal with minimum transfer granularity
+  * ability to deal with minimum read/write granularity of SFRs (APB granularity is 32 bit for example)
 * Efficiency
- * Limit number of handshakes to the minimum
- * APDUs with large data shall be transferred as efficiently as in ISO7816-3 T=1
+  * Limit number of handshakes to the minimum
+  * APDUs with large data shall be transferred as efficiently as in ISO7816-3 T=1
 * Length,Value encoding to allow easy encapsulation
 
 ## Non Goals
@@ -64,16 +64,16 @@ All ISO7816-4 C-APDU cases are mapped to a single C-TPDU format
 |-  |-  |-  |-  |-  |-  |-    |-  |
 
 * FL,LE
- * 32 bits values in little endian format
- * FL is the Frame length: the total length of the C-TPDU excuding PAD, so ISO7816-4's LC = FL - 12
- * LE value is the same as ISO7816-4's LE, just encoded differently
+  * 32 bits values in little endian format
+  * FL is the Frame length: the total length of the C-TPDU excuding PAD, so ISO7816-4's LC = FL - 12
+  * LE value is the same as ISO7816-4's LE, just encoded differently
 * CLA,INS,P1,P2
- * Single byte values
- * Exactly the same values as in the ISO7816-4 C-APDU
+  * Single byte values
+  * Exactly the same values as in the ISO7816-4 C-APDU
 * DATA
- * exactly FL - 12 bytes
+  * exactly FL - 12 bytes
 * PAD
- * 0 or more bytes
+  * 0 or more bytes
 
 NOTE: ISO7816-4 LC and LE are limited to 0x10000. C-TPDU FL is limited to 0x1000C, higher values are
 reserved for future use. For example they could be used to encode a compact frame format for optimizing
@@ -86,15 +86,15 @@ A single R-TPDU format cover all cases
 |-  |-     |-     |-     |-    |
 
 * FL: Total length of the R-TPDU excuding PAD
- * 32 bits values in little endian format
- * FL - 6 is the length of the DATA field, it shall be inferior or equal to LE field in the command TPDU
+  * 32 bits values in little endian format
+  * FL - 6 is the length of the DATA field, it shall be inferior or equal to LE field in the command TPDU
 * DATA
- * exactly FL - 6 bytes
+  * exactly FL - 6 bytes
 * SW1, SW2
- * Single byte values
- * Exactly the same values as in the ISO7816-4 R-APDU
+  * Single byte values
+  * Exactly the same values as in the ISO7816-4 R-APDU
 * PAD
- * 0 or more bytes
+  * 0 or more bytes
 
 ## Command - Response exchanges
 
@@ -112,9 +112,9 @@ redundancy check, parameters negotiation and error handling.
 
 ### FL in R-TPDU
 According to ISO7816, R-APDUs are allowed to contain less data than specified in
- the C-APDU LE field. As a result the transport layer cannot impose a simple
- rule like "all requested byte shall be sent". The master needs therefore a mean
-  to know the length of the response (since we do not want to rely on timeouts).  
+the C-APDU LE field. As a result the transport layer cannot impose a simple
+rule like "all requested byte shall be sent". The master needs therefore a mean
+to know the length of the response (since we do not want to rely on timeouts).  
 
 ### Little endian encoding
 Most low end architectures are little endian.
