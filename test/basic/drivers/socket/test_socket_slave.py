@@ -2,21 +2,30 @@
 import os
 import sys
 import time
+import subprocess
 
-os.spawnl(os.P_WAIT, sys.executable, 'py','build.py')
-
-def np(*unix_paths):
-    p = os.sep.join(unix_paths)
-    return p.replace('/',os.sep)
+#build and import utils like np
+from build import *
 
 argspy = ''
 if len(sys.argv)>1:
-    argspy = sys.argv[1]+' '
+    argspy = ' '+sys.argv[1]
 if len(sys.argv)>4:
-    argspy += sys.argv[4]+' '
-    
-args = ' '.join(sys.argv[1:])
-os.spawnl(os.P_NOWAIT, np('../../bin/socket/slave_socket'), 'slave_socket '+args)
-time.sleep(1)
-os.spawnl(os.P_WAIT, sys.executable, 'py','../../../satl_test.py master 0 1 1 1 '+argspy)
+    argspy += ' '+sys.argv[4]
 
+args = ' '.join(sys.argv[1:])
+
+#import shlex
+#args = shlex.split(command_line)
+cmd = [ np('../../bin/socket/slave_socket')]
+if len(args):
+    cmd+= args.split(" ")
+print(cmd)
+subprocess.Popen(cmd)
+
+
+time.sleep(1)
+a2 = '../../../satl_test.py master 0 1 1 1'+argspy
+cmd = [ sys.executable] + a2.split(" ")
+print(cmd)
+subprocess.run(cmd,check=True)

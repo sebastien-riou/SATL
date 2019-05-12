@@ -44,6 +44,7 @@ static long unsigned int rx_bytes_available(int sockfd){
 #define closesocket close
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <sys/ioctl.h>
 #include <unistd.h>
 static void init_socket_api(void){}
 static long unsigned int rx_bytes_available(int sockfd){
