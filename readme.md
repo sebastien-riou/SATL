@@ -65,7 +65,7 @@ All ISO7816-4 C-APDU cases are mapped to a single C-TPDU format
 
 * FL,LE
   * 32 bits values in little endian format
-  * FL is the Frame length: the total length of the C-TPDU excuding PAD, so ISO7816-4's LC = FL - 12
+  * FL is the Frame length: the total length of the C-TPDU excluding PAD, so ISO7816-4's LC = FL - 12
   * LE value is the same as ISO7816-4's LE, just encoded differently
 * CLA,INS,P1,P2
   * Single byte values
@@ -85,7 +85,7 @@ A single R-TPDU format cover all cases
 |FL |DATA  |SW1   |SW2   | PAD |
 |-  |-     |-     |-     |-    |
 
-* FL: Total length of the R-TPDU excuding PAD
+* FL: Total length of the R-TPDU excluding PAD
   * 32 bits values in little endian format
   * FL - 6 is the length of the DATA field, it shall be inferior or equal to LE field in the command TPDU
 * DATA
