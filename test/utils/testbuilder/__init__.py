@@ -1,7 +1,7 @@
 from psb import *
 
 if platform.system()=='Windows':
-    libs='-lws2_32'
+    libs='ws2_32'
 else:
     libs=''
 
