@@ -1,12 +1,13 @@
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
+//#include <sys/socket.h>
+//#include <netinet/in.h>
+//#include <arpa/inet.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
-#include <sys/types.h>
+//#include <sys/types.h>
+#include <stdint.h>
 #include <time.h>
 
 #include <assert.h>
@@ -76,6 +77,7 @@ int main(int argc, char *argv[]){
     params.address=0;
     params.port = port;
 
+    init_socket_api();
     #ifndef SATL_TEST_SOCKET
         sockfd = SATL_socket_slave_init(&params);
         emu_init(&com_peripheral);

@@ -44,6 +44,7 @@ static void SATL_switch_to_tx(SATL_driver_ctx_t *const ctx){
 }
 
 static void __SATL_tx16(const SATL_driver_ctx_t *ctx,uint16_t dat){
+    //printf("__SATL_tx16\n");
     while(0==COM16_TX_IS_READY(ctx->hw));
     COM16_SET_TX(ctx->hw,dat);
 }

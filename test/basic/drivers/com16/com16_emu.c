@@ -1,30 +1,35 @@
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <netinet/in.h>
-#include <netdb.h>
+//#include <sys/socket.h>
+//#include <sys/types.h>
+//#include <netinet/in.h>
+//#include <netdb.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
-#include <arpa/inet.h>
+//#include <arpa/inet.h>
+#include <stdint.h>
 #include <assert.h>
+
+#define SATL_SOCKET_ONLY_CUSTOM_FUNCS
+#include "../../../../implementations/c99/basic/drivers/socket/satl_socket.h"
 
 #include "../../../../implementations/c99/basic/drivers/com16/com16.h"
 
 extern int sockfd;
 
-#include <sys/ioctl.h>
-#include <linux/sockios.h>
+//#include <sys/ioctl.h>
+//#include <linux/sockios.h>
 
 void get_updated_state(COM16_t*const ctx){
     int ret;
     if(0==(ctx->CTRL & COM16_CTRL_RXR_MASK)){
-        ioctl(sockfd, SIOCINQ, &ret);
+        ret=rx_bytes_available(sockfd);
+        //ioctl(sockfd, SIOCINQ, &ret);
         //if(ret) printf("ret=%d\n",ret);
         if(ret>=2){//get updated state
             uint16_t buf;
-            int received = recv(sockfd, &buf, 2,MSG_WAITALL);
+            int received = recv(sockfd, (uint8_t*)&buf, 2,MSG_WAITALL);
             ctx->RX = buf;
             assert(2==received);
             ctx->CTRL|=COM16_CTRL_RXR_MASK;
@@ -52,5 +57,8 @@ uint16_t emu_rd_rx(COM16_t*const ctx){
 void emu_wr_tx(COM16_t*const ctx,uint16_t val){
     //printf("write TX=0x%04X\n",val);
     ctx->TX = val;
-    write(sockfd, (uint8_t*)&val, 2);
+    int iResult = send(sockfd, (uint8_t*)&val, 2,0);
+    if (iResult!=2) {
+        printf("send returned %d\n",iResult);
+    }
 }

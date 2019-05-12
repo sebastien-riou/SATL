@@ -82,7 +82,9 @@ class PySatl(object):
     def __slave_rx(self):
         assert(not self.is_master)
         headerlen = 4+2*self.LENLEN
+        #print("slave_rx")
         data = self.__frame_rx()
+        #print(data)
         le = int.from_bytes(data[self.LENLEN:2*self.LENLEN],byteorder='little',signed=False)
         h=2*self.LENLEN
         capdu = CAPDU(data[h],data[h+1],data[h+2],data[h+3],data[headerlen:],le)

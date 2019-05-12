@@ -5,8 +5,53 @@
 #include "stdio.h"
 #include "stdlib.h"
 
-#include <sys/ioctl.h>
-#include <linux/sockios.h>
+//#include <sys/ioctl.h>
+//#include <linux/sockios.h>
+#if defined _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+static int inet_pton(int af, const char *src, void *dst){
+  struct sockaddr_storage ss;
+  int size = sizeof(ss);
+  char src_copy[INET6_ADDRSTRLEN+1];
+
+  ZeroMemory(&ss, sizeof(ss));
+  strncpy (src_copy, src, INET6_ADDRSTRLEN+1);
+  src_copy[INET6_ADDRSTRLEN] = 0;
+
+  if (WSAStringToAddress(src_copy, af, NULL, (struct sockaddr *)&ss, &size) == 0) {
+    switch(af) {
+      case AF_INET:
+    *(struct in_addr *)dst = ((struct sockaddr_in *)&ss)->sin_addr;
+    return 1;
+      case AF_INET6:
+    *(struct in6_addr *)dst = ((struct sockaddr_in6 *)&ss)->sin6_addr;
+    return 1;
+    }
+  }
+  return 0;
+}
+static void init_socket_api(void){
+    WSADATA mywsadata; //your wsadata struct, it will be filled by WSAStartup
+    WSAStartup(0x0202,&mywsadata); //0x0202 refers to version of sockets we want to use.
+}
+static long unsigned int rx_bytes_available(int sockfd){
+    long unsigned int bytes_available;
+    ioctlsocket(sockfd,FIONREAD,&bytes_available);
+    return bytes_available;
+}
+#else
+#define closesocket close
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+static void init_socket_api(void){}
+static long unsigned int rx_bytes_available(int sockfd){
+    long unsigned int bytes_available;
+    ioctl(sockfd,FIONREAD,&bytes_available);
+    return bytes_available;
+}
+#endif
 
 typedef struct SATL_socket_params_struct_t {
     const char*address;//"127.0.0.1"
@@ -105,7 +150,7 @@ static void     SATL_tx                (SATL_driver_ctx_t *const ctx, const void
 static void     SATL_final_tx          (SATL_driver_ctx_t *const ctx, const void *const buf, unsigned int len){
     //printf("SATL_final_tx %u\n",len);
     SATL_tx(ctx, buf, len);
-    write(ctx->sockfd, ctx->buf, ctx->buf_level);
+    send(ctx->sockfd, ctx->buf, ctx->buf_level,0);
     ctx->buf_level=0;
     ctx->rx_read_pos=0;
 }
