@@ -66,8 +66,11 @@ typedef struct SATL_ctx_struct_t {
     uint32_t remaining;//remaining bytes in this exchange
     uint32_t buf_level;//remaining bytes in the SFR access level buffer
     uint32_t buf_len;//negotiated max exchange size
+    uint32_t flags;
     uint8_t buf[SATL_SFR_GRANULARITY];//SFR access level buffer
 } SATL_ctx_t;
+
+#define SATL_LE_SENT 1
 
 #define SATL_LEN_LEN (sizeof(uint32_t))
 #define SATL_DATA_SIZE_LIMIT  (((uint32_t)1)<<16)
@@ -133,6 +136,7 @@ static void SATL_safe_final_tx(SATL_ctx_t*const ctx,const void*const buf,uint32_
 
 static void SATL_rx_dat(SATL_ctx_t*const ctx, void*const dat, uint32_t data_len){
     //printf("SATL_rx_dat len=%u\n",data_len);
+
     uint8_t*data = (uint8_t*)dat;
     assert(ctx->remaining>=data_len);
     uint32_t remaining = data_len;
@@ -203,6 +207,7 @@ static uint32_t SATL_master_init(SATL_ctx_t*const ctx, void *const hw){
     ctx->fl = 0;
     ctx->remaining = 0;
     ctx->buf_level=0;
+    ctx->flags=0;
     uint32_t sblen = SATL_master_init_driver(DCTX,hw);
     #if SATL_ACK
         ctx->buf_len = sblen<SATL_MBLEN ? sblen : SATL_MBLEN;
@@ -277,6 +282,7 @@ static uint32_t SATL_slave_init(SATL_ctx_t*const ctx, void *const hw){
     ctx->fl = 0;
     ctx->remaining = 0;
     ctx->buf_level=0;
+    ctx->flags=0;
     uint32_t mblen=SATL_slave_init_driver(DCTX,hw);
     #if SATL_ACK
         ctx->buf_len = mblen<SATL_SBLEN ? mblen : SATL_SBLEN;
@@ -320,6 +326,7 @@ static void SATL_slave_tx_le(SATL_ctx_t*const ctx, uint32_t le){
         SATL_rx_ack(DCTX);
         ctx->remaining = SATL_MBLEN;
     }
+    ctx->flags|=SATL_LE_SENT;
 }
 
 static void SATL_slave_tx_dat(SATL_ctx_t*const ctx, const void *const data, uint32_t len){
@@ -331,6 +338,7 @@ static void SATL_slave_tx_sw(SATL_ctx_t*const ctx, const SATL_rapdu_sw_t*const s
     //printf("fl mod SATL_MBLEN = %u\n",ctx->fl%SATL_MBLEN);
     assert(2==sizeof(SATL_rapdu_sw_t));//if this change the code below needs update
     //printf("ctx->remaining=%u\n",ctx->remaining);
+    if(0==(ctx->flags & SATL_LE_SENT)) SATL_slave_tx_le(ctx,0);
     if(ctx->remaining==1){
         SATL_safe_tx(ctx,&(sw->SW1),1);
         SATL_rx_ack(DCTX);
@@ -339,6 +347,7 @@ static void SATL_slave_tx_sw(SATL_ctx_t*const ctx, const SATL_rapdu_sw_t*const s
         SATL_safe_final_tx(ctx,sw,sizeof(SATL_rapdu_sw_t));
     }
     ctx->remaining=0;
+    ctx->flags&=~SATL_LE_SENT;
 }
 
 static void SATL_slave_tx_full(SATL_ctx_t*const ctx, uint32_t le, const void *const data,const SATL_rapdu_sw_t*const sw){
