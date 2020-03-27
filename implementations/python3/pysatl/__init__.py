@@ -1,3 +1,21 @@
+"""Library to transport ISO7816-4 APDUs over anything"""
+
+__version__ = '1.0.0'
+__title__ = 'pysatl'
+__description__ = 'Library to transport ISO7816-4 APDUs over anything'
+__long_description__ = """
+A simple way to exchange ISO7816-4 APDUs over interfaces not covered in ISO7816-3.
+ISO7816-3 standardize how to exchange APDUs over a "smart card UART" but does not cover other kind of communication interface such as I2C, SPI, JTAG, APB and so on.
+Global Platform set out to standardize transport over I2C and SPI but as of today the draft is not publicly available and the timeline for an approved standard is anybody's guess.
+Finally ISO7816-3, for historical reasons, is overly complicated and it is virtually impossible to get perfect interoperability without extensive field trials (some revisions of the standard seems to contradict each other).
+"""
+__uri__ = 'https://github.com/sebastien-riou/SATL'
+__doc__ = __description__ + ' <' + __uri__ + '>'
+__author__ = 'Sebastien Riou'
+# For all support requests, please open a new issue on GitHub
+__email__ = 'matic@nimp.co.uk'
+__license__ = 'Apache 2.0'
+__copyright__ = ''
 
 class PySatl(object):
     DATA_SIZE_LIMIT = 1<<16
