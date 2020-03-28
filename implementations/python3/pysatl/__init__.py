@@ -1,6 +1,6 @@
 """Library to transport ISO7816-4 APDUs over anything"""
 
-__version__ = '1.0.2'
+__version__ = '1.0.3'
 __title__ = 'pysatl'
 __description__ = 'Library to transport ISO7816-4 APDUs over anything'
 __long_description__ = """
@@ -30,37 +30,65 @@ class PySatl(object):
         skip_init (bool): If ``True`` the initialization phase is skipped
 
     """
-    DATA_SIZE_LIMIT = 1<<16
-    INITIAL_BUFFER_LENGTH = 4
-    LENLEN = 4
+
+    @property
+    def DATA_SIZE_LIMIT(self):
+        """int: max data field length"""
+        return 1<<16
+
+    @property
+    def INITIAL_BUFFER_LENGTH(self):
+        """int: initial length of buffer for the initialization phase"""
+        return 4
+
+    @property
+    def LENLEN(self):
+        """int: length in bytes of the length fields"""
+        return 4
+
+    @property
+    def com(self):
+        """object: Communication hardware driver"""
+        return self._com
+
+    @property
+    def is_master(self):
+        """bool: `True` if master, `False` if slave"""
+        return self._is_master
+
+    @property
+    def other_bufferlen(self):
+        """int: buffer length of the other side"""
+        return self._other_bufferlen
+
     def __init__(self,is_master,com_driver,skip_init=False):
-        self.com = com_driver
-        self.is_master=is_master
+        self._com = com_driver
+        self._is_master=is_master
 
         if self.com.ack & (False==skip_init):
             #this models the buffer length of the other side
             #our side buffer length is in self.com_driver.bufferlen
-            self.other_bufferlen = self.INITIAL_BUFFER_LENGTH
+            self._other_bufferlen = self.INITIAL_BUFFER_LENGTH
 
             if is_master:
                 self.com.tx(self.com.bufferlen.to_bytes(self.LENLEN,byteorder='little'))
                 data = self.com.rx(self.LENLEN)
-                self.other_bufferlen = int.from_bytes(data[0:self.LENLEN], byteorder='little', signed=False)
+                self._other_bufferlen = int.from_bytes(data[0:self.LENLEN], byteorder='little', signed=False)
             else:
                 data = self.com.rx(self.LENLEN)
-                self.other_bufferlen = int.from_bytes(data[0:self.LENLEN], byteorder='little', signed=False)
+                self._other_bufferlen = int.from_bytes(data[0:self.LENLEN], byteorder='little', signed=False)
                 self.com.tx(self.com.bufferlen.to_bytes(self.LENLEN,byteorder='little'))
 
             assert(self.other_bufferlen >= self.com.granularity)
             assert(self.other_bufferlen >= self.com.sfr_granularity)
             assert(0==(self.other_bufferlen % self.com.granularity))
             assert(0==(self.other_bufferlen % self.com.sfr_granularity))
-            if self.other_bufferlen<self.com.bufferlen:
+            if self._other_bufferlen<self.com.bufferlen:
                 self.com.bufferlen = self.other_bufferlen
         else:
-            self.other_bufferlen = self.com.bufferlen
+            self._other_bufferlen = self.com.bufferlen
             if not self.com.ack:
-                assert(self.other_bufferlen>self.DATA_SIZE_LIMIT+2*self.LENLEN+4)
+                assert(self._other_bufferlen>self.DATA_SIZE_LIMIT+2*self.LENLEN+4)
 
     def __pad(self,buf):
         """pad the buffer if necessary"""
@@ -177,7 +205,12 @@ class PySatl(object):
         return data
 
 class CAPDU(object):
-    """ISO7816-4 C-APDU"""
+    """ISO7816-4 C-APDU
+
+    All parameters are read/write attributes.
+    There is no restriction on `CLA` and `INS` values.
+    There is no check on DATA length and LE value.
+    """
 
     def __init__(self,CLA,INS,P1,P2,DATA=bytearray(),LE=0):
         self.CLA = CLA
@@ -199,7 +232,12 @@ class CAPDU(object):
         return out
 
 class RAPDU(object):
-    """ISO7816-4 R-APDU"""
+    """ISO7816-4 R-APDU
+
+    All parameters are read/write attributes.
+    There is no restriction on `SW1` and `SW2` valuesself.
+    There is no check on DATA length.
+    """
 
     def __init__(self,SW1,SW2,DATA=bytearray()):
         self.DATA = DATA
@@ -216,9 +254,17 @@ class RAPDU(object):
         return out
 
 class SocketComDriver(object):
-    """Parameterized model for a communication peripheral and low level rx/tx functions"""
+    """Parameterized model for a communication peripheral and low level rx/tx functions
+
+    Args:
+        sock (socket): `socket` object used for communication
+        bufferlen (int): Number of bytes that can be received in a row at max rate
+        granularity (int): Smallest number of bytes that can be transported over the link
+        ack (bool): if ``False``, :func:`tx_ack` and :func:`rx_ack` do nothing
+
+    """
     def __init__(self,sock,bufferlen=4,granularity=1,sfr_granularity=1,ack=True):
-        self.sock = sock
+        self._sock = sock
         if granularity > sfr_granularity:
             assert(0==(granularity % sfr_granularity))
         if granularity < sfr_granularity:
@@ -227,53 +273,96 @@ class SocketComDriver(object):
         assert(1==bin(granularity).count("1"))
         assert(1==bin(sfr_granularity).count("1"))
 
-        self.granularity=granularity
-        self.sfr_granularity=sfr_granularity
-        self.ack=ack
+        self._granularity=granularity
+        self._sfr_granularity=sfr_granularity
+        self._ack=ack
         if ack:
-            self.bufferlen=bufferlen
+            self._bufferlen=bufferlen
         else:
             #if no ack then we have hardware flow control, this is equivalent to infinite buffer size
-            self.bufferlen = 1<<32 - 1
+            self._bufferlen = 1<<32 - 1
+
+    @property
+    def sock(self):
+        """socket: `socket` object used for communication"""
+        return self._sock
+
+    @property
+    def bufferlen(self):
+        """int: Number of bytes that can be received in a row at max rate"""
+        return self._bufferlen
+
+    @bufferlen.setter
+    def bufferlen(self, value):
+        #No doc string here, all doc must be in the getter docstring
+        self._bufferlen = value
+
+    @property
+    def granularity(self):
+        """int: Smallest number of bytes that can be transported over the link"""
+        return self._granularity
+
+    @property
+    def sfr_granularity(self):
+        """int: Smallest number of bytes that can be accessed via the hardware on this side"""
+        return self._sfr_granularity
+
+    @property
+    def ack(self):
+        """bool: if ``False``, :func:`tx_ack` and :func:`rx_ack` do nothing"""
+        return self._ack
 
     def tx_ack(self):
         if self.ack:
             #print("send ack")
-            self.sock.send(b'3') #0x33
+            self._sock.send(b'3') #0x33
 
     def rx_ack(self):
         if self.ack:
             #print("wait ack")
-            self.sock.recv(1)
+            self._sock.recv(1)
             #print("ack recieved")
 
     def tx(self,data):
-        assert(0==(len(data) % self.sfr_granularity))
-        assert(0==(len(data) % self.granularity))
+        """Transmit data
+
+        Args:
+            data (bytes): bytes to transmit, shall be compatible with :func:`sfr_granularity` and :func:`granularity`
+        """
+        assert(0==(len(data) % self._sfr_granularity))
+        assert(0==(len(data) % self._granularity))
         #print("send ",data)
-        self.sock.send(data)
+        self._sock.send(data)
 
     def rx(self,length):
-        assert(length<=self.bufferlen)
+        """Receive data
+
+        Args:
+            length (int): length to receive, shall be compatible with :func:`granularity` and smaller or equal to :func:`bufferlen`
+
+        Returns:
+            bytes: received data, padded with zeroes if necessary to be compatible with :func:`sfr_granularity`
+        """
+        assert(length<=self._bufferlen)
         data = bytearray()
-        remaining = length+Utils.padlen(length,self.granularity)
+        remaining = length+Utils.padlen(length,self._granularity)
         #print("length=",length)
         #print("remaining=",remaining)
         while(remaining):
             #print("remaining=",remaining)
             #print("receive: ",end="")
-            dat = self.sock.recv(remaining)
+            dat = self._sock.recv(remaining)
             if 0==len(dat):
                 raise Exception("Connection broken")
             #print(dat)
             data += dat
             remaining -= len(dat)
-        if self.ack & (len(data)>self.bufferlen):
+        if self._ack & (len(data)>self._bufferlen):
             raise ValueError("RX overflow, data length = %d"%len(data))
-        assert(0==(len(data) % self.granularity))
+        assert(0==(len(data) % self._granularity))
 
         #padding due to SFRs granularity
-        data = Utils.pad(data,self.sfr_granularity)
+        data = Utils.pad(data,self._sfr_granularity)
         #print("received data length after padding = ",len(data))
         return data
 
@@ -290,16 +379,59 @@ class StreamComDriver(object):
         assert(1==bin(granularity).count("1"))
         assert(1==bin(sfr_granularity).count("1"))
 
-        self.bufferlen=bufferlen
-        self.granularity=granularity
-        self.sfr_granularity=sfr_granularity
+        self._bufferlen=bufferlen
+        self._granularity=granularity
+        self._sfr_granularity=sfr_granularity
+
+    @property
+    def sream(self):
+        """stream: `stream` object used for communication"""
+        return self._stream
+
+    @property
+    def bufferlen(self):
+        """int: Number of bytes that can be received in a row at max rate"""
+        return self._bufferlen
+
+    @bufferlen.setter
+    def bufferlen(self, value):
+        #No doc string here, all doc must be in the getter docstring
+        self._bufferlen = value
+
+    @property
+    def granularity(self):
+        """int: Smallest number of bytes that can be transported over the link"""
+        return self._granularity
+
+    @property
+    def sfr_granularity(self):
+        """int: Smallest number of bytes that can be accessed via the hardware on this side"""
+        return self._sfr_granularity
+
+    @property
+    def ack(self):
+        """bool: ``False``"""
+        return False
 
     def tx(self,data):
+        """Transmit data
+
+        Args:
+            data (bytes): bytes to transmit, shall be compatible with :func:`sfr_granularity` and :func:`granularity`
+        """
         assert(0==(len(data) % self.sfr_granularity))
         assert(0==(len(data) % self.granularity))
         self.stream.write(data)
 
     def rx(self,length):
+        """Receive data
+
+        Args:
+            length (int): length to receive, shall be compatible with :func:`granularity` and smaller or equal to :func:`bufferlen`
+
+        Returns:
+            bytes: received data, padded with zeroes if necessary to be compatible with :func:`sfr_granularity`
+        """
         data = bytearray()
         while(len(data)<length):
             dat = self.stream.read(self.granularity)

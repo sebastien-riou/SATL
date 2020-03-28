@@ -82,6 +82,8 @@ show_authors = True
 html_theme = 'sphinx_rtd_theme'
 htmlhelp_basename = 'doc'
 
+napoleon_use_ivar = True
+
 preamble = r'''
 \usepackage{wallpaper}
 \usepackage{titlesec}
