@@ -41,6 +41,8 @@ def find_meta(meta):
         return meta_match.group(1)
     raise RuntimeError("Unable to find __{meta}__ string.".format(meta=meta))
 
+with open("README.md", "r") as fh:
+    long_description = fh.read()
 
 setuptools.setup(
     name=find_meta('title'),
@@ -48,13 +50,16 @@ setuptools.setup(
     author=find_meta('author'),
     author_email=find_meta('email'),
     description=find_meta('description'),
-    long_description = find_meta('long_description'),
+    long_description = long_description,
     long_description_content_type="text/markdown",
     url=find_meta('uri'),
     packages=setuptools.find_packages(),
     package_dir={'': '.'},
     classifiers=[
         "Programming Language :: Python :: 3",
+        "License :: OSI Approved :: Apache Software License",
         "Operating System :: OS Independent",
+        "Development Status :: 5 - Production/Stable"
     ],
+    python_requires='>=3.5',
 )

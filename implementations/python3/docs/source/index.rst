@@ -5,6 +5,29 @@ pysatl's documentation
 
 SATL stands for 'Simple APDU Transport Layer'. It is a simple way to exchange ISO7816-4 APDUs over interfaces not covered in ISO7816-3.
 
+Other pages (online)
+
+- `project page on GitHub`_
+- `Download Page`_ with releases
+- This page, when viewed online is at https://pysatl.readthedocs.io/en/latest/
+
+.. _`project page on GitHub`: https://github.com/sebastien-riou/SATL/tree/master/implementations/python3
+.. _`Download Page`: http://pypi.python.org/pypi/pysatl
+
+
+Installation
+************
+This installs a package that can be used from Python (``import serial``).
+
+To install for all users on the system, administrator rights (root)
+may be required.
+
+From PyPI
+=========
+pysatl can be installed from PyPI::
+
+    python3 -m pip install --user pysatl
+
 Classes
 *******
 
@@ -26,6 +49,13 @@ RAPDU
 .. autoclass :: pysatl.RAPDU
     :members:
 
+Utils
+=====
+
+.. autoclass :: pysatl.Utils
+    :members:
+    :undoc-members:
+
 SocketComDriver
 ===============
 
@@ -39,14 +69,6 @@ StreamComDriver
 .. autoclass :: pysatl.StreamComDriver
     :members:
     :undoc-members:
-
-Utils
-=====
-
-.. autoclass :: pysatl.Utils
-    :members:
-    :undoc-members:
-
 .. toctree::
 
 Indices and tables
