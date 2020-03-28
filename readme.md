@@ -36,7 +36,7 @@ Finally ISO7816-3, for historical reasons, is overly complicated and it is virtu
 
 ## Hardware requirements
 * Half duplex communication link
-* hardware control flow or ability to receive 4 bytes in a row
+* Ability to receive 4 bytes in a row OR hardware control flow
 
 ## Padding
 Some interfaces have a transfer granularity larger than a single byte. When the length of the transfer is not a multiple of the transfer unit, extra bytes have to be sent, we refer to those bytes as "PAD". The position of the pad shall be always on the last transferred unit and on the most significant bytes of the transfer unit. The value of the pad is meaning less and shall be ignored.

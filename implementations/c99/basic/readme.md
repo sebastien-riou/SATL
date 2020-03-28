@@ -3,6 +3,40 @@ This is a basic implementation that covers simple cases in which a blocking
 interface is acceptable and the characteristics of both the master and the slave
 are known in advance and can be hard coded.
 
+# Initialization
+
+## Context and driver declaration
+Typical code:
+
+    #include <stdint.h>
+    #include "satl_com_driver.h"
+    #include "satl.h"
+    SATL_ctx_t SATL_ctx;
+
+In this example:
+- satl_com_driver.h is a header file defining the hardware to use for communication
+- SATL_ctx is the ctx argument for all subsequent calls to SATL functions
+
+See Also: [How to integrate in a project](#how-to-integrate-in-a-project)
+
+## Initializing as master
+Master side typical initialization code:
+
+    uint32_t sblen = SATL_master_init(&SATL_ctx,&com_hw);
+
+In this example:
+- com_hw is the hardware ressource to use for communication, it is provided as context to functions defined in satl_com_driver.h
+- sblen is the Slave Buffer Size (SBLEN): the maximum number of bytes it can receive in a row at maximum transfer speed. 0 means unlimited.
+
+## Initializing as slave
+Slave side typical initialization code:
+
+     uint32_t mblen = SATL_slave_init(&SATL_ctx,&com_hw);
+
+In this example:
+- com_hw is the hardware ressource to use for communication, it is provided as context to functions defined in satl_com_driver.h
+- mblen is the Master Buffer Size (MBLEN): the maximum number of bytes it can receive in a row at maximum transfer speed. 0 means unlimited.
+
 # High level API
 Master and slave communication is covered by 4 functions, their signature and
 usage is independent of the underlying communication interface.
@@ -75,31 +109,40 @@ Finally **SATL_master_rx_sw** shall be called.
     void SATL_master_rx_dat(SATL_ctx_t*const ctx, void*const dat, uint32_t len);
     void SATL_master_rx_sw (SATL_ctx_t*const ctx, SATL_rapdu_sw_t*const sw);
 
-# How to integrate in a project ?
-Define common integer types uint8_t, uint16_t, uint32. Typically this is done
+# How to integrate in a project
+Do those three steps in order:
+1. Define common integer types uint8_t, uint16_t, uint32. Typically this is done
 by including "stdint.h". If it is not available on your platform you can still
 define them using a typedefs.
+* Include the communication interface header file.
+* Include "satl.h".
 
-Include the communication interface header file.
-
-Include "satl.h".
-
-    #include "stdint.h"
+For example:
+    #include <stdint.h>
     #include "satl_com16.h"
     #include "satl.h"
 
-NOTE: SATL is a "header" only library, to use it with different
+
+---
+**NOTE:**
+
+SATL is a "header" only library, to use it with different
 interfaces within a single project, you just need to do those steps in two
 different c files.
+
+---
 
 # How to create a new communication interface header file
 Define low level functions to your hardware communication interface in a dedicated
 header file. This section details what this file shall contain.
 
-NOTES:
+---
+**NOTES:**
 * The guidelines and constraints discussed here apply only when using the basic
 C implementation "satl.h". Other implementation may have very different approaches.
 * Only your functions access the hardware communication interface.
+
+---
 
 ## Define interface properties
 Define the control flow and buffering capabilities of your hardware.
@@ -133,14 +176,19 @@ If your implementation support slave functions, define **SATL_SUPPORT_SLAVE**.
 
 If your implementation support master functions, define **SATL_SUPPORT_MASTER**.
 
-NOTES:
+For example:
+
+    #define SATL_SUPPORT_SLAVE
+    #define SATL_SUPPORT_MASTER
+
+---
+**NOTES:**
+
 * An header file can support one of them or both.
 * You can also support slave functions in one header file and master functions
 in a separate header file.
 
-
-    #define SATL_SUPPORT_SLAVE
-    #define SATL_SUPPORT_MASTER
+---
 
 ## Define driver context structure
 All functions have a pointer on a "SATL_driver_ctx_t" as first argument. Your

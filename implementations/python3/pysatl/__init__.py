@@ -18,6 +18,18 @@ __license__ = 'Apache 2.0'
 __copyright__ = ''
 
 class PySatl(object):
+    """ SATL main class
+
+    Generic SATL implementation. It interface to actual hardware via a
+    "communication driver" which shall implement few functions.
+    See SocketComDriver and StreamComDriver for example.
+
+    Args:
+        is_master (Boolean): Set to True to be master, False to be slave
+        com_driver (object): A SATL communication driver
+        skip_init (Boolean): If True the initialization phase is skipped
+
+    """
     DATA_SIZE_LIMIT = 1<<16
     INITIAL_BUFFER_LENGTH = 4
     LENLEN = 4
@@ -50,22 +62,31 @@ class PySatl(object):
             if not self.com.ack:
                 assert(self.other_bufferlen>self.DATA_SIZE_LIMIT+2*self.LENLEN+4)
 
-
-    def pad(self,buf):
+    def __pad(self,buf):
         """pad the buffer if necessary"""
         return Utils.pad(buf,self.com.granularity)
 
-    def padlen(self,l):
+    def __padlen(self,l):
         """compute the length of the padded data of length l"""
         return Utils.padlen(l,self.com.granularity)
 
     def tx(self,apdu):
+        """Transmit
+
+        Args:
+            apdu: if master, apdu shall be a CAPDU. If slave, a RAPDU.
+        """
         if self.is_master:
             self.__master_tx(apdu)
         else:
             self.__slave_tx(apdu)
 
     def rx(self):
+        """Receive
+
+         Returns:
+             If master, a RPDU. If slave, a CAPDU.
+         """
         if self.is_master:
             return self.__master_rx()
         else:
@@ -120,7 +141,7 @@ class PySatl(object):
 
     def __frame_tx(self,data):
         """send a complete frame (either a C-TPDU or a R-TPDU), taking care of padding and splitting in chunk"""
-        data=self.pad(data)
+        data=self.__pad(data)
         #print("padded frame to send: ",data)
 
         if len(data) < self.other_bufferlen:
@@ -157,6 +178,7 @@ class PySatl(object):
 
 class CAPDU(object):
     """ISO7816-4 C-APDU"""
+
     def __init__(self,CLA,INS,P1,P2,DATA=bytearray(),LE=0):
         self.CLA = CLA
         self.INS = INS
@@ -178,6 +200,7 @@ class CAPDU(object):
 
 class RAPDU(object):
     """ISO7816-4 R-APDU"""
+
     def __init__(self,SW1,SW2,DATA=bytearray()):
         self.DATA = DATA
         if DATA is None:
@@ -290,6 +313,8 @@ class StreamComDriver(object):
         return data
 
 class Utils(object):
+    """Helper class"""
+
     @staticmethod
     def pad(buf,granularity):
         """pad the buffer if necessary (with zeroes)"""
@@ -308,12 +333,12 @@ class Utils(object):
     @staticmethod
     def hexstr(bytes, head="", separator=" ", tail=""):
         """Returns an hex string representing bytes
-        @param bytes:  a list of bytes to stringify,
-                    e.g. [59, 22, 148, 32, 2, 1, 0, 0, 13]
-                    or a bytearray
-        @param head: the string you want in front of each bytes. Empty by default.
-        @param separator: the string you want between each bytes. One space by default.
-        @param tail: the string you want after each bytes. Empty by default.
+
+        Args:
+            bytes: a list of bytes to stringify, e.g. [59, 22] or a bytearray
+            head: the string you want in front of each bytes. Empty by default.
+            separator: the string you want between each bytes. One space by default.
+            tail: the string you want after each bytes. Empty by default.
         """
         if bytes is not bytearray:
             bytes = bytearray(bytes)
