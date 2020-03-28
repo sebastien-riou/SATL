@@ -1,3 +1,2 @@
 sphinx>=2.1
 sphinx_autodoc_typehints
-sphinx.ext.napoleon
