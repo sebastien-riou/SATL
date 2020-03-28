@@ -69,7 +69,8 @@ version = find_meta('version')
 needs_sphinx = '2.1'
 extensions = ['sphinx.ext.autodoc',
               'sphinx.ext.doctest',
-              'sphinx_autodoc_typehints']
+              'sphinx_autodoc_typehints',
+              'sphinx.ext.napoleon']
 templates_path = ['templates']
 source_suffix = '.rst'
 master_doc = 'index'

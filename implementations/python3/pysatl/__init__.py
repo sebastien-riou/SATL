@@ -22,12 +22,12 @@ class PySatl(object):
 
     Generic SATL implementation. It interface to actual hardware via a
     "communication driver" which shall implement few functions.
-    See SocketComDriver and StreamComDriver for example.
+    See :class:`SocketComDriver` and :class:`StreamComDriver` for example.
 
     Args:
-        is_master (Boolean): Set to True to be master, False to be slave
+        is_master (bool): Set to ``True`` to be master, ``False`` to be slave
         com_driver (object): A SATL communication driver
-        skip_init (Boolean): If True the initialization phase is skipped
+        skip_init (bool): If ``True`` the initialization phase is skipped
 
     """
     DATA_SIZE_LIMIT = 1<<16
@@ -74,7 +74,7 @@ class PySatl(object):
         """Transmit
 
         Args:
-            apdu: if master, apdu shall be a CAPDU. If slave, a RAPDU.
+            apdu (object): if master, apdu shall be a :class:`CAPDU`. If slave, a :class:`RAPDU`.
         """
         if self.is_master:
             self.__master_tx(apdu)
@@ -85,7 +85,7 @@ class PySatl(object):
         """Receive
 
          Returns:
-             If master, a RPDU. If slave, a CAPDU.
+             If master, a :class:`RAPDU`. If slave, a :class:`CAPDU`.
          """
         if self.is_master:
             return self.__master_rx()
