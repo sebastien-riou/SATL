@@ -289,6 +289,7 @@ static uint32_t SATL_slave_init(SATL_ctx_t*const ctx, void *const hw){
         assert(0==(ctx->buf_len)%SATL_SFR_GRANULARITY);
         return ctx->buf_len;
     #else
+        (void)mblen;//remove unused warning
         ctx->buf_len = SATL_FRAME_SIZE_LIMIT;
         return 0;
     #endif
