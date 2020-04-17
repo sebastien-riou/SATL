@@ -231,6 +231,15 @@ class CAPDU(object):
             out += " - LE=%5d"%(self.LE)
         return out
 
+    def hdr_bytes(self):
+        out=bytearray()
+        out+=self.CLA
+        out+=self.INS
+        out+=self.P1
+        out+=self.P2
+        return out.bytes()
+
+
 class RAPDU(object):
     """ISO7816-4 R-APDU
 

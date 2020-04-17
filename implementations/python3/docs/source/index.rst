@@ -76,6 +76,7 @@ StreamComDriver
 .. autoclass :: pysatl.StreamComDriver
     :members:
     :undoc-members:
+
 .. toctree::
 
 Indices and tables

@@ -44,22 +44,24 @@ usage is independent of the underlying communication interface.
 ## Sending a C-APDU on a master
 A single function call send the whole command APDU:
 
-    void SATL_master_tx(SATL_capdu_header_t*hdr,uint32_t lc, uint32_t le, uint8_t*data);
+    void SATL_master_tx_full(SATL_ctx_t*const ctx, SATL_capdu_header_t*hdr,uint32_t lc, uint32_t le, uint8_t*data);
 
 ## Receiving a C-APDU on a slave
 A single function call receive the whole command APDU:
 
-    void SATL_slave_rx(SATL_capdu_header_t*hdr,uint32_t *lc, uint32_t *le, uint8_t*data);
+    void SATL_slave_rx_full(SATL_ctx_t*const ctx, SATL_capdu_header_t*hdr, uint32_t *lc, uint32_t *le, uint8_t*data);
 
 ## Sending a R-APDU on a slave
 A single function call send the whole response APDU:
 
-    void SATL_slave_tx(uint32_t le, uint8_t*data,SATL_rapdu_sw_t*sw);
+````c
+    void SATL_slave_tx_full(SATL_ctx_t*const ctx, uint32_t le, uint8_t*data,SATL_rapdu_sw_t*sw);
+````
 
 ## Receiving a R-APDU on a master
 A single function call receive the whole response APDU:
 
-    void SATL_master_rx(uint32_t *le, uint8_t*data,SATL_rapdu_sw_t*sw);
+    void SATL_master_rx_full(SATL_ctx_t*const ctx, uint32_t *le, uint8_t*data,SATL_rapdu_sw_t*sw);
 
 # Piecemeal API
 The high level functions handling full APDUs may not be suitable for low cost
