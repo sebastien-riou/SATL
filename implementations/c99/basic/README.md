@@ -8,10 +8,12 @@ are known in advance and can be hard coded.
 ## Context and driver declaration
 Typical code:
 
-    #include <stdint.h>
-    #include "satl_com_driver.h"
-    #include "satl.h"
-    SATL_ctx_t SATL_ctx;
+````c
+#include <stdint.h>
+#include "satl_com_driver.h"
+#include "satl.h"
+SATL_ctx_t SATL_ctx;
+````
 
 In this example:
 - satl_com_driver.h is a header file defining the hardware to use for communication
@@ -22,7 +24,9 @@ See Also: [How to integrate in a project](#how-to-integrate-in-a-project)
 ## Initializing as master
 Master side typical initialization code:
 
-    uint32_t sblen = SATL_master_init(&SATL_ctx,&com_hw);
+````c
+uint32_t sblen = SATL_master_init(&SATL_ctx,&com_hw);
+````
 
 In this example:
 - com_hw is the hardware ressource to use for communication, it is provided as context to functions defined in satl_com_driver.h
@@ -31,7 +35,9 @@ In this example:
 ## Initializing as slave
 Slave side typical initialization code:
 
-     uint32_t mblen = SATL_slave_init(&SATL_ctx,&com_hw);
+````c
+ uint32_t mblen = SATL_slave_init(&SATL_ctx,&com_hw);
+````
 
 In this example:
 - com_hw is the hardware ressource to use for communication, it is provided as context to functions defined in satl_com_driver.h
@@ -44,24 +50,30 @@ usage is independent of the underlying communication interface.
 ## Sending a C-APDU on a master
 A single function call send the whole command APDU:
 
-    void SATL_master_tx_full(SATL_ctx_t*const ctx, SATL_capdu_header_t*hdr,uint32_t lc, uint32_t le, uint8_t*data);
+````c
+void SATL_master_tx_full(SATL_ctx_t*const ctx, SATL_capdu_header_t*hdr,uint32_t lc, uint32_t le, uint8_t*data);
+````
 
 ## Receiving a C-APDU on a slave
 A single function call receive the whole command APDU:
 
-    void SATL_slave_rx_full(SATL_ctx_t*const ctx, SATL_capdu_header_t*hdr, uint32_t *lc, uint32_t *le, uint8_t*data);
+````c
+void SATL_slave_rx_full(SATL_ctx_t*const ctx, SATL_capdu_header_t*hdr, uint32_t *lc, uint32_t *le, uint8_t*data);
+````
 
 ## Sending a R-APDU on a slave
 A single function call send the whole response APDU:
 
 ````c
-    void SATL_slave_tx_full(SATL_ctx_t*const ctx, uint32_t le, uint8_t*data,SATL_rapdu_sw_t*sw);
+void SATL_slave_tx_full(SATL_ctx_t*const ctx, uint32_t le, uint8_t*data,SATL_rapdu_sw_t*sw);
 ````
 
 ## Receiving a R-APDU on a master
 A single function call receive the whole response APDU:
 
-    void SATL_master_rx_full(SATL_ctx_t*const ctx, uint32_t *le, uint8_t*data,SATL_rapdu_sw_t*sw);
+````c
+void SATL_master_rx_full(SATL_ctx_t*const ctx, uint32_t *le, uint8_t*data,SATL_rapdu_sw_t*sw);
+````
 
 # Piecemeal API
 The high level functions handling full APDUs may not be suitable for low cost
@@ -74,8 +86,10 @@ First **SATL_master_tx_hdr** shall be called.
 Optionally call **SATL_master_tx_dat** one or several times.
 The sum of **len** for all calls to **SATL_master_tx_dat** shall be equal to the **lc** passed to **SATL_master_tx_hdr**.
 
-    void SATL_master_tx_hdr(SATL_ctx_t*const ctx, const SATL_capdu_header_t*const hdr, uint32_t lc, uint32_t le);
-    void SATL_master_tx_dat(SATL_ctx_t*const ctx, const void *const data, uint32_t len);
+````c
+void SATL_master_tx_hdr(SATL_ctx_t*const ctx, const SATL_capdu_header_t*const hdr, uint32_t lc, uint32_t le);
+void SATL_master_tx_dat(SATL_ctx_t*const ctx, const void *const data, uint32_t len);
+````
 
 ## Receiving a C-APDU on a slave
 First **SATL_slave_rx_hdr** shall be called.
@@ -83,8 +97,10 @@ First **SATL_slave_rx_hdr** shall be called.
 Optionally call **SATL_slave_rx_dat** one or several times.
 The sum of **len** for all calls to **SATL_slave_rx_dat** shall be equal to the **lc** passed to **SATL_slave_rx_hdr**.
 
-    void SATL_slave_rx_hdr(SATL_ctx_t*const ctx, SATL_capdu_header_t*hdr,uint32_t *lc, uint32_t *le);
-    void SATL_slave_rx_dat(SATL_ctx_t*const ctx, void*const data, uint32_t len);
+````c
+void SATL_slave_rx_hdr(SATL_ctx_t*const ctx, SATL_capdu_header_t*hdr,uint32_t *lc, uint32_t *le);
+void SATL_slave_rx_dat(SATL_ctx_t*const ctx, void*const data, uint32_t len);
+````
 
 ## Sending a R-APDU on a slave
 First **SATL_slave_tx_le** shall be called.
@@ -94,10 +110,11 @@ The sum of **len** for all calls to **SATL_slave_tx_dat** shall be equal to the 
 
 Finally **SATL_slave_tx_sw** shall be called.
 
-    void SATL_slave_tx_le (SATL_ctx_t*const ctx, uint32_t le);
-    void SATL_slave_tx_dat(SATL_ctx_t*const ctx, const void *const data, uint32_t len);
-    void SATL_slave_tx_sw (SATL_ctx_t*const ctx, const SATL_rapdu_sw_t*const sw);
-
+````c
+void SATL_slave_tx_le (SATL_ctx_t*const ctx, uint32_t le);
+void SATL_slave_tx_dat(SATL_ctx_t*const ctx, const void *const data, uint32_t len);
+void SATL_slave_tx_sw (SATL_ctx_t*const ctx, const SATL_rapdu_sw_t*const sw);
+````
 
 ## Receiving a R-APDU on a master
 First **SATL_master_rx_le** shall be called.
@@ -107,9 +124,11 @@ The sum of **len** for all calls to **SATL_master_rx_dat** shall be equal to the
 
 Finally **SATL_master_rx_sw** shall be called.
 
-    void SATL_master_rx_le (SATL_ctx_t*const ctx, uint32_t*const le);
-    void SATL_master_rx_dat(SATL_ctx_t*const ctx, void*const dat, uint32_t len);
-    void SATL_master_rx_sw (SATL_ctx_t*const ctx, SATL_rapdu_sw_t*const sw);
+````c
+void SATL_master_rx_le (SATL_ctx_t*const ctx, uint32_t*const le);
+void SATL_master_rx_dat(SATL_ctx_t*const ctx, void*const dat, uint32_t len);
+void SATL_master_rx_sw (SATL_ctx_t*const ctx, SATL_rapdu_sw_t*const sw);
+````
 
 # How to integrate in a project
 Do those three steps in order:
@@ -120,10 +139,11 @@ define them using a typedefs.
 * Include "satl.h".
 
 For example:
-    #include <stdint.h>
-    #include "satl_com16.h"
-    #include "satl.h"
-
+````c
+#include <stdint.h>
+#include "satl_com16.h"
+#include "satl.h"
+````
 
 ---
 **NOTE:**
@@ -157,21 +177,27 @@ need to define the hardware buffer size for each sides, in bytes.
 ### Example 1: Interface without control flow
 In this case SATL_MBLEN and SATL_SBLEN shall be defined.
 
-    #define SATL_ACK 1
-    #define SATL_MBLEN 268
-    #define SATL_SBLEN 268
+````c
+#define SATL_ACK 1
+#define SATL_MBLEN 268
+#define SATL_SBLEN 268
+````
 
 ### Example 2: Interface with control flow
 In this case the defines for buffer size are not required.
 
-    #define SATL_ACK 0
+````c
+#define SATL_ACK 0
+````
 
 ## Define SFR granularity
 The macro SATL_SFR_GRANULARITY defines the minimum access size supported by the
 hardware peripheral. It is usually 1,2 or 4 bytes.
 Typical value for APB peripherals is 4.
 
-    #define SATL_SFR_GRANULARITY 4
+````c
+#define SATL_SFR_GRANULARITY 4
+````
 
 ## Define Master/Slave support
 If your implementation support slave functions, define **SATL_SUPPORT_SLAVE**.
@@ -180,8 +206,10 @@ If your implementation support master functions, define **SATL_SUPPORT_MASTER**.
 
 For example:
 
-    #define SATL_SUPPORT_SLAVE
-    #define SATL_SUPPORT_MASTER
+````c
+#define SATL_SUPPORT_SLAVE
+#define SATL_SUPPORT_MASTER
+````
 
 ---
 **NOTES:**
@@ -197,11 +225,13 @@ All functions have a pointer on a "SATL_driver_ctx_t" as first argument. Your
 header file shall define this structure. For example, the "com16" driver defines
 it as follows:
 
-    typedef struct SATL_driver_ctx_struct_t {
-        COM16_t*hw;
-        uint16_t buf;
-        uint32_t buf_level;
-    } SATL_driver_ctx_t;
+````c
+typedef struct SATL_driver_ctx_struct_t {
+    COM16_t*hw;
+    uint16_t buf;
+    uint32_t buf_level;
+} SATL_driver_ctx_t;
+````
 
 ## Initialization functions
 There is two initialization function entry point to distinguish master and slave
@@ -211,9 +241,12 @@ hardware specific parameters.
 NOTE: You do not need to implement **SATL_slave_init_driver** if your header file
 does not defines **SATL_SUPPORT_SLAVE**. Same remark applies to **SATL_master_init_driver** and **SATL_SUPPORT_MASTER**.
 
-    //Initialization
-    static uint32_t SATL_slave_init_driver (SATL_driver_ctx_t *const ctx, void *hw){}
-    static uint32_t SATL_master_init_driver(SATL_driver_ctx_t *const ctx, void *hw){}
+````c
+//Initialization
+static uint32_t SATL_slave_init_driver (SATL_driver_ctx_t *const ctx, void *hw){}
+static uint32_t SATL_master_init_driver(SATL_driver_ctx_t *const ctx, void *hw){}
+````
+
 
 ## TX functions
 **SATL_tx** and **SATL_final_tx** can be blocking or not, on half duplex links, **SATL_final_tx** is required to
@@ -221,22 +254,28 @@ change the communication direction to **SATL_rx** before it exit.
 **SATL_tx** function is called only with **len** being a multiple of **SATL_SFR_GRANULARITY**.
 Note however that **buf** may not be aligned.
 
-    //TX functions
-    static void     SATL_switch_to_tx      (SATL_driver_ctx_t *const ctx){}
-    static void     SATL_tx                (SATL_driver_ctx_t *const ctx, const void *const buf, unsigned int len){}
-    static void     SATL_final_tx          (SATL_driver_ctx_t *const ctx, const void *const buf, unsigned int len){}
+````c
+//TX functions
+static void     SATL_switch_to_tx      (SATL_driver_ctx_t *const ctx){}
+static void     SATL_tx                (SATL_driver_ctx_t *const ctx, const void *const buf, unsigned int len){}
+static void     SATL_final_tx          (SATL_driver_ctx_t *const ctx, const void *const buf, unsigned int len){}
+````
 
 ## RX functions
 **SATL_rx** and **SATL_final_rx** are required to be blocking.
 
-    //RX functions
-    static void     SATL_rx                (SATL_driver_ctx_t *const ctx, void *buf, unsigned int len){}
-    static void     SATL_final_rx          (SATL_driver_ctx_t *const ctx, void *buf, unsigned int len){}
-    static uint32_t SATL_get_rx_level      (const SATL_driver_ctx_t *ctx){}
+````c
+//RX functions
+static void     SATL_rx                (SATL_driver_ctx_t *const ctx, void *buf, unsigned int len){}
+static void     SATL_final_rx          (SATL_driver_ctx_t *const ctx, void *buf, unsigned int len){}
+static uint32_t SATL_get_rx_level      (const SATL_driver_ctx_t *ctx){}
+````
 
 ## ACK signal functions
 If there is hardware flow control, simply leave those functions empty.
 
-    //ACK signal functions
-    static void     SATL_tx_ack            (SATL_driver_ctx_t *const ctx){}
-    static void     SATL_rx_ack            (SATL_driver_ctx_t *const ctx){}
+````c
+//ACK signal functions
+static void     SATL_tx_ack            (SATL_driver_ctx_t *const ctx){}
+static void     SATL_rx_ack            (SATL_driver_ctx_t *const ctx){}
+````
