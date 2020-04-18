@@ -1,6 +1,6 @@
 """Library to transport ISO7816-4 APDUs over anything"""
 
-__version__ = '1.0.3'
+__version__ = '1.1.0'
 __title__ = 'pysatl'
 __description__ = 'Library to transport ISO7816-4 APDUs over anything'
 __long_description__ = """
@@ -170,39 +170,53 @@ class PySatl(object):
     def __frame_tx(self,data):
         """send a complete frame (either a C-TPDU or a R-TPDU), taking care of padding and splitting in chunk"""
         data=self.__pad(data)
-        #print("padded frame to send: ",data)
+        #print("__frame_tx: padded frame to send: ",data,flush=True)
 
         if len(data) < self.other_bufferlen:
             self.com.tx(data)
         else:
             chunks = (len(data)-1) // self.other_bufferlen
+            #print("__frame_tx: %d full chunks + last"%chunks,flush=True)
             for i in range(0,chunks):
                 self.com.tx(data[i*self.other_bufferlen:(i+1)*self.other_bufferlen])
                 self.com.rx_ack()
             self.com.tx(data[chunks*self.other_bufferlen:])
+        #print("__frame_tx done",flush=True)
 
     def __frame_rx(self):
         """receive a complete frame (either a C-TPDU or a R-TPDU), return it without pad"""
-        flbytes = self.com.rx(self.LENLEN)
+        self._rx_cnt=0
+        flbytes = self.__rx(self.LENLEN)
         fl = int.from_bytes(flbytes[0:self.LENLEN],byteorder='little',signed=False)
 
         remaining = fl - len(flbytes)
-        #print(fl,remaining)
-        data = flbytes
-        first_rxlen = min(remaining,self.com.bufferlen- len(flbytes))
-        #print("first_rxlen=",first_rxlen)
-        dat = self.com.rx(first_rxlen)
-        remaining -= len(dat)
-        data += dat
-        while(remaining>0):
-            self.com.tx_ack()
-            dat = self.com.rx(min(remaining,self.com.bufferlen))
-            remaining -= len(dat)
-            data += dat
+        #print("fl=%d, remaining=%d"%(fl,remaining),flush=True)
+        data = flbytes+self.__rx(remaining)
         #remove padding
         data = data[0:fl]
-        #print("received frame: ",data)
+        #print("received frame: ",data,flush=True)
         return data
+
+    def __rx(self,length):
+        """receive and send ack as needed"""
+        remaining=length
+        out=bytearray()
+        if self._rx_cnt>0 and (0==(self._rx_cnt%self.com.bufferlen)):
+            self.com.tx_ack()
+        rxlen = min(remaining,self.com.bufferlen-(self._rx_cnt%self.com.bufferlen))
+        #print("first_rxlen=",rxlen,flush=True)
+        dat = self.com.rx(rxlen)
+        self._rx_cnt+=rxlen
+        remaining -= rxlen
+        out += dat
+        while(remaining>0):
+            self.com.tx_ack()
+            rxlen=min(remaining,self.com.bufferlen)
+            dat = self.com.rx(rxlen)
+            self._rx_cnt+=rxlen
+            remaining -= rxlen
+            out += dat
+        return out
 
 class CAPDU(object):
     """ISO7816-4 C-APDU
@@ -323,14 +337,15 @@ class SocketComDriver(object):
 
     def tx_ack(self):
         if self.ack:
-            #print("send ack")
+            #print("send ack",flush=True)
             self._sock.send(b'3') #0x33
+            #print("ack sent",flush=True)
 
     def rx_ack(self):
         if self.ack:
-            #print("wait ack")
+            #print("wait ack",flush=True)
             self._sock.recv(1)
-            #print("ack recieved")
+            #print("ack recieved",flush=True)
 
     def tx(self,data):
         """Transmit data
@@ -340,7 +355,7 @@ class SocketComDriver(object):
         """
         assert(0==(len(data) % self._sfr_granularity))
         assert(0==(len(data) % self._granularity))
-        #print("send ",data)
+        #print("send ",data,flush=True)
         self._sock.send(data)
 
     def rx(self,length):
@@ -355,8 +370,8 @@ class SocketComDriver(object):
         assert(length<=self._bufferlen)
         data = bytearray()
         remaining = length+Utils.padlen(length,self._granularity)
-        #print("length=",length)
-        #print("remaining=",remaining)
+        #print("length=",length,flush=True)
+        #print("remaining=",remaining,flush=True)
         while(remaining):
             #print("remaining=",remaining)
             #print("receive: ",end="")
@@ -372,13 +387,13 @@ class SocketComDriver(object):
 
         #padding due to SFRs granularity
         data = Utils.pad(data,self._sfr_granularity)
-        #print("received data length after padding = ",len(data))
+        #print("received data length after padding = ",len(data),flush=True)
         return data
 
 
 class StreamComDriver(object):
     """Parameterized model for a communication peripheral and low level rx/tx functions"""
-    def __init__(self,stream,bufferlen=3,granularity=1,sfr_granularity=1):
+    def __init__(self,stream,bufferlen=3,granularity=1,sfr_granularity=1,ack=False):
         self.stream = stream
         if granularity > sfr_granularity:
             assert(0==(granularity % sfr_granularity))
@@ -391,6 +406,7 @@ class StreamComDriver(object):
         self._bufferlen=bufferlen
         self._granularity=granularity
         self._sfr_granularity=sfr_granularity
+        self._ack=ack
 
     @property
     def sream(self):
@@ -419,8 +435,8 @@ class StreamComDriver(object):
 
     @property
     def ack(self):
-        """bool: ``False``"""
-        return False
+        """bool: if ``False``, :func:`tx_ack` and :func:`rx_ack` do nothing"""
+        return self._ack
 
     def tx(self,data):
         """Transmit data
@@ -428,6 +444,7 @@ class StreamComDriver(object):
         Args:
             data (bytes): bytes to transmit, shall be compatible with :func:`sfr_granularity` and :func:`granularity`
         """
+        print("tx ",data,flush=True)
         assert(0==(len(data) % self.sfr_granularity))
         assert(0==(len(data) % self.granularity))
         self.stream.write(data)
@@ -441,17 +458,31 @@ class StreamComDriver(object):
         Returns:
             bytes: received data, padded with zeroes if necessary to be compatible with :func:`sfr_granularity`
         """
+        print("rx %d "%length,end="",flush=True)
         data = bytearray()
         while(len(data)<length):
             dat = self.stream.read(self.granularity)
             data += dat
         if len(data)>self.bufferlen:
-            raise("RX overflow, data length = ",len(data))
+            raise Exception("RX overflow, data length = ",len(data))
+        print(data,flush=True)
         assert(0==(len(data) % self.granularity))
 
         #padding due to SFRs granularity
         data = Utils.pad(data,self.sfr_granularity)
         return data
+
+    def tx_ack(self):
+        if self.ack:
+            print("send ack",flush=True)
+            data=bytearray([ord(b'A')] * self.granularity)
+            self.stream.write(data)
+
+    def rx_ack(self):
+        if self.ack:
+            print("wait ack",flush=True)
+            dat = self.stream.read(self.granularity)
+            print("ack recieved: ",dat,flush=True)
 
 class Utils(object):
     """Helper class"""

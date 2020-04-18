@@ -54,8 +54,8 @@ if len(sys.argv)>6:
 if len(sys.argv)>7:
     long_test = sys.argv[7]=='1'
 
-if ack:
-    assert(buffer_length>=4)
+#if ack:
+#    assert(buffer_length>=4)
 
 print("%s buffer_length="%sys.argv[1],buffer_length)
 

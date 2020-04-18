@@ -261,7 +261,7 @@ static void SATL_master_rx_dat(SATL_ctx_t*const ctx, void*const dat, uint32_t le
 static void SATL_master_rx_sw(SATL_ctx_t*const ctx, SATL_rapdu_sw_t*const sw){
     //printf("SATL_master_rx_sw\n");
     assert(0==ctx->remaining);
-    switch(ctx->fl % SATL_MBLEN){
+    switch(ctx->fl % ctx->buf_len){
         case 1:  SATL_rx(DCTX,sw,1);SATL_tx_ack(DCTX);SATL_final_rx(DCTX,&(sw->SW2),1);break;
         case 2:  SATL_tx_ack(DCTX);SATL_final_rx(DCTX,sw,sizeof(SATL_rapdu_sw_t));break;
         default: SATL_final_rx(DCTX,sw,sizeof(SATL_rapdu_sw_t));
@@ -320,13 +320,15 @@ static void SATL_slave_tx_le(SATL_ctx_t*const ctx, uint32_t le){
     //printf("SATL_slave_tx_le le=%u\n",le);
     SATL_switch_to_tx(DCTX);
     uint32_t fl = SATL_LEN_LEN+le+sizeof(SATL_rapdu_sw_t);
-    SATL_safe_tx(ctx,&fl,SATL_LEN_LEN);
-    ctx->remaining = SATL_MBLEN - SATL_LEN_LEN;
+    ctx->remaining = ctx->buf_len;;
+    SATL_tx_dat(ctx,&fl,SATL_LEN_LEN);
+    //SATL_safe_tx(ctx,&fl,SATL_LEN_LEN);
+    //ctx->remaining = SATL_MBLEN - SATL_LEN_LEN;
     ctx->fl = fl - SATL_LEN_LEN;
-    if(le && (0==ctx->remaining)) {
-        SATL_rx_ack(DCTX);
-        ctx->remaining = SATL_MBLEN;
-    }
+    //if(le && (0==ctx->remaining)) {
+    //    SATL_rx_ack(DCTX);
+    //    ctx->remaining = SATL_MBLEN;
+    //}
     ctx->flags|=SATL_LE_SENT;
 }
 
