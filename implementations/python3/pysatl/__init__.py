@@ -281,22 +281,18 @@ class SocketComDriver(object):
     """
     def __init__(self,sock,bufferlen=4,granularity=1,sfr_granularity=1,ack=True):
         self._sock = sock
-        if granularity > sfr_granularity:
-            assert(0==(granularity % sfr_granularity))
-        if granularity < sfr_granularity:
-            assert(0==(sfr_granularity % granularity))
-        #shall be power of 2
-        assert(1==bin(granularity).count("1"))
-        assert(1==bin(sfr_granularity).count("1"))
+        adapter=self.SocketAsStream(sock)
+        self._impl = StreamComDriver(adapter,bufferlen,granularity,sfr_granularity,ack)
 
-        self._granularity=granularity
-        self._sfr_granularity=sfr_granularity
-        self._ack=ack
-        if ack:
-            self._bufferlen=bufferlen
-        else:
-            #if no ack then we have hardware flow control, this is equivalent to infinite buffer size
-            self._bufferlen = 1<<32 - 1
+    class SocketAsStream(object):
+        def __init__(self,sock):
+            self._sock=sock
+
+        def write(self,data):
+            self._sock.send(data)
+
+        def read(self,length):
+            return self._sock.recv(length)
 
     @property
     def sock(self):
@@ -306,39 +302,33 @@ class SocketComDriver(object):
     @property
     def bufferlen(self):
         """int: Number of bytes that can be received in a row at max rate"""
-        return self._bufferlen
+        return self._impl.bufferlen
 
     @bufferlen.setter
     def bufferlen(self, value):
         #No doc string here, all doc must be in the getter docstring
-        self._bufferlen = value
+        self._impl.bufferlen = value
 
     @property
     def granularity(self):
         """int: Smallest number of bytes that can be transported over the link"""
-        return self._granularity
+        return self._impl.granularity
 
     @property
     def sfr_granularity(self):
         """int: Smallest number of bytes that can be accessed via the hardware on this side"""
-        return self._sfr_granularity
+        return self._impl.sfr_granularity
 
     @property
     def ack(self):
         """bool: if ``False``, :func:`tx_ack` and :func:`rx_ack` do nothing"""
-        return self._ack
+        return self._impl.ack
 
     def tx_ack(self):
-        if self.ack:
-            #print("send ack",flush=True)
-            self._sock.send(b'3') #0x33
-            #print("ack sent",flush=True)
+        self._impl.tx_ack()
 
     def rx_ack(self):
-        if self.ack:
-            #print("wait ack",flush=True)
-            ack=self._sock.recv(1)
-            #print("ack recieved ",Utils.hexstr(ack),flush=True)
+        self._impl.rx_ack()
 
     def tx(self,data):
         """Transmit data
@@ -346,10 +336,7 @@ class SocketComDriver(object):
         Args:
             data (bytes): bytes to transmit, shall be compatible with :func:`sfr_granularity` and :func:`granularity`
         """
-        assert(0==(len(data) % self._sfr_granularity))
-        assert(0==(len(data) % self._granularity))
-        #print("send ",Utils.hexstr(data),flush=True)
-        self._sock.send(data)
+        self._impl.tx(data)
 
     def rx(self,length):
         """Receive data
@@ -360,28 +347,7 @@ class SocketComDriver(object):
         Returns:
             bytes: received data, padded with zeroes if necessary to be compatible with :func:`sfr_granularity`
         """
-        assert(length<=self._bufferlen)
-        data = bytearray()
-        remaining = length+Utils.padlen(length,self._granularity)
-        #print("length=",length,flush=True)
-        #print("remaining=",remaining,flush=True)
-        while(remaining):
-            #print("remaining=",remaining)
-            #print("receive: ",end="")
-            dat = self._sock.recv(remaining)
-            if 0==len(dat):
-                raise Exception("Connection broken")
-            #print("received: ",Utils.hexstr(dat))
-            data += dat
-            remaining -= len(dat)
-        if self._ack & (len(data)>self._bufferlen):
-            raise ValueError("RX overflow, data length = %d"%len(data))
-        assert(0==(len(data) % self._granularity))
-
-        #padding due to SFRs granularity
-        data = Utils.pad(data,self._sfr_granularity)
-        #print("received data length after padding = ",len(data),flush=True)
-        return data
+        return self._impl.rx(length)
 
 
 class StreamComDriver(object):
