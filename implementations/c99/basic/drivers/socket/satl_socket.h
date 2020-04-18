@@ -106,7 +106,9 @@ static int SATL_socket_slave_init(void *hw){
 
 #ifndef SATL_SOCKET_ONLY_CUSTOM_FUNCS
 
+#ifndef SATL_ACK
 #define SATL_ACK 0
+#endif
 #define SATL_SFR_GRANULARITY 1
 #define SATL_SUPPORT_SLAVE
 #define SATL_SUPPORT_MASTER
@@ -185,8 +187,19 @@ static uint32_t SATL_get_rx_level      (const SATL_driver_ctx_t *ctx){
 }
 
 //ACK signal functions
+#if SATL_ACK
+static void     SATL_tx_ack            (SATL_driver_ctx_t *const ctx){
+    uint8_t ack='A';
+    send(ctx->sockfd, &ack, 1,0);
+}
+static void     SATL_rx_ack            (SATL_driver_ctx_t *const ctx){
+    uint8_t ack;
+    recv(ctx->sockfd, &ack, 1, MSG_WAITALL);
+}
+#else
 static void     SATL_tx_ack            (SATL_driver_ctx_t *const ctx){assert(0);}
 static void     SATL_rx_ack            (SATL_driver_ctx_t *const ctx){assert(0);}
+#endif
 
 #endif //SATL_SOCKET_ONLY_CUSTOM_FUNCS
 
