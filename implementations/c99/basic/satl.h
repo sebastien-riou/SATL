@@ -1,6 +1,3 @@
-#ifndef __SATL_H__
-#define __SATL_H__
-
 //assume little endian platform
 //expect stdint.h to be included in the C file, or uint8_t and uint32_t types to be defined somehow
 
@@ -9,8 +6,8 @@
 //  SATL_master_init OR SATL_slave_init
 //
 //2.a APDU exchanges (full size):
-//  SATL_master_full_tx OR SATL_slave_full_tx
-//  SATL_master_full_rx OR SATL_slave_full_rx
+//  SATL_master_tx_full OR SATL_slave_tx_full
+//  SATL_master_rx_full OR SATL_slave_rx_full
 //
 //2.b APDU exchanges (arbitrary chunk size API):
 //  Master side:
@@ -26,6 +23,31 @@
 //      SATL_slave_tx_le
 //      SATL_slave_tx_dat
 //      SATL_slave_tx_sw
+
+
+#ifndef __SATL_H__TYPES
+#define __SATL_H__TYPES
+
+typedef struct SATL_capdu_header_struct_t {
+    uint8_t CLA;
+    uint8_t INS;
+    uint8_t P1;
+    uint8_t P2;
+} SATL_capdu_header_t;
+
+typedef struct SATL_rapdu_sw_struct_t {
+    uint8_t SW1;
+    uint8_t SW2;
+} SATL_rapdu_sw_t;
+
+typedef struct SATL_ctx_struct_t SATL_ctx_t;
+
+#endif //__SATL_H__TYPES
+
+#ifndef SATL_TYPES_ONLY
+
+#ifndef __SATL_H__
+#define __SATL_H__
 
 #ifndef SATL_ACK
 #error "SATL_ACK not defined. Set to 1 if control flow must be handled by software, otherwise 0"
@@ -47,18 +69,6 @@
 #if (SATL_SFR_GRANULARITY!=1) && (SATL_SFR_GRANULARITY!=2) && (SATL_SFR_GRANULARITY!=4)
 #error "this implementation supports only 1,2 and 4 for SATL_SFR_GRANULARITY"
 #endif
-
-typedef struct SATL_capdu_header_struct_t {
-    uint8_t CLA;
-    uint8_t INS;
-    uint8_t P1;
-    uint8_t P2;
-} SATL_capdu_header_t;
-
-typedef struct SATL_rapdu_sw_struct_t {
-    uint8_t SW1;
-    uint8_t SW2;
-} SATL_rapdu_sw_t;
 
 typedef struct SATL_ctx_struct_t {
     SATL_driver_ctx_t driver_ctx;//keep this as first member to avoid constant addition each time we call driver functions
@@ -285,7 +295,7 @@ static void SATL_master_rx_full(SATL_ctx_t*const ctx, uint32_t *const le, void*c
     SATL_master_rx_dat(ctx,data,*le);
     SATL_master_rx_sw(ctx,sw);
 }
-#endif
+#endif //SATL_SUPPORT_MASTER
 
 #ifdef SATL_SUPPORT_SLAVE
 static uint32_t SATL_slave_init(SATL_ctx_t*const ctx, void *const hw){
@@ -372,6 +382,8 @@ static void SATL_slave_tx_full(SATL_ctx_t*const ctx, uint32_t le, const void *co
     SATL_slave_tx_sw(ctx, sw);
 }
 
-#endif
+#endif //SATL_SUPPORT_SLAVE
 
 #endif //__SATL_H__
+
+#endif //SATL_TYPES_ONLY
