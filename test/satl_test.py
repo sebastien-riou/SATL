@@ -94,18 +94,22 @@ if sys.argv[1]=='slave':
     while True:
         cmd = slave.rx()
         #print(cmd)
-        ledat=None
-        if cmd.LE>0:
-            rle = cmd.INS<<16
-            rle += cmd.P1<<8
-            rle += cmd.P2
-            #print(rle)
-            assert(cmd.LE>=rle)
-            ledat = cmd.DATA[0:rle]
-            remaining = rle-len(cmd.DATA)
-            if remaining>0:
-                ledat += refdatle[0:remaining]
-        response = pysatl.RAPDU(0x90,0x00,ledat)
+        if cmd.CLA == 0xFE:
+            #in this case we just answer status word
+            response = pysatl.RAPDU(0x69,0x00)
+        else:
+            ledat=None
+            if cmd.LE>0:
+                rle = cmd.INS<<16
+                rle += cmd.P1<<8
+                rle += cmd.P2
+                #print(rle)
+                assert(cmd.LE>=rle)
+                ledat = cmd.DATA[0:rle]
+                remaining = rle-len(cmd.DATA)
+                if remaining>0:
+                    ledat += refdatle[0:remaining]
+            response = pysatl.RAPDU(0x90,0x00,ledat)
         #print(response)
         slave.tx(response)
         if cmd.CLA == 0xFF:
@@ -123,6 +127,13 @@ else:
     master_com = pysatl.SocketComDriver(link,buffer_length,link_granularity,sfr_granularity,ack)
     master = pysatl.PySatl(is_master=True,com_driver=master_com,skip_init=skip_init)
     apdu = pysatl.CAPDU(CLA=1,INS=2,P1=3,P2=4)
+    print(apdu)
+    master.tx(apdu)
+    response = master.rx()
+    print(response)
+
+    #test error case with LC data
+    apdu = pysatl.CAPDU(CLA=0xFE,INS=2,P1=3,P2=4,DATA=bytearray([1,2,3,4,5,6]))
     print(apdu)
     master.tx(apdu)
     response = master.rx()

@@ -109,17 +109,23 @@ int main(int argc, char *argv[]){
             printf(" - LE=%5u",le);
         }
         printf("\n");*/
-        if(le){
-            uint32_t rle = ((uint32_t)hdr.INS)<<16;
-            rle += ((uint32_t)hdr.P1)<<8;
-            rle += hdr.P2;
-            assert(le>=rle);
-            uint32_t l = lc<rle ? lc : rle;
-            assert(0==memcmp(refdat,data,l));
-            memcpy(data+lc,refdatle,rle-l);
-            le = rle;
-        }
 
+        if(0xFE==hdr.CLA){
+            //in this case we just answer status word
+            sw.SW1 = 0x69;
+            le=0;
+        } else {
+            if(le){
+                uint32_t rle = ((uint32_t)hdr.INS)<<16;
+                rle += ((uint32_t)hdr.P1)<<8;
+                rle += hdr.P2;
+                assert(le>=rle);
+                uint32_t l = lc<rle ? lc : rle;
+                assert(0==memcmp(refdat,data,l));
+                memcpy(data+lc,refdatle,rle-l);
+                le = rle;
+            }
+        }
         /*printf("R-APDU %02X %02X",sw.SW1,sw.SW2);
         if(le){
             printf(" - LE=%5u DATA: ",le);
