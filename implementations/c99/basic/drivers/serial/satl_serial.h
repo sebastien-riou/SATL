@@ -1,8 +1,12 @@
 #ifndef __SATL_SERIAL_H__
 #define __SATL_SERIAL_H__
 
+#ifndef SATL_SERIAL_BUF_LEN
 #define SATL_SERIAL_BUF_LEN 1
+#endif
+#ifndef SATL_ACK
 #define SATL_ACK 1
+#endif
 #define SATL_MBLEN SATL_SERIAL_BUF_LEN
 #define SATL_SBLEN SATL_SERIAL_BUF_LEN
 #define SATL_SFR_GRANULARITY 1
@@ -60,13 +64,17 @@ static void SATL_final_rx(SATL_driver_ctx_t *const ctx,void*buf,unsigned int len
 
 static void SATL_tx_ack(SATL_driver_ctx_t *const ctx){
     //printf("SATL_tx_ack\n");
+    #if SATL_ACK
     ctx->tx('3');
+    #endif
 }
 
 static void SATL_rx_ack(SATL_driver_ctx_t *const ctx){
     //printf("SATL_rx_ack ");
+    #if SATL_ACK
     uint8_t ack=ctx->rx();
     (void)ack;
+    #endif
     //assert('A' == ctx->rx());// Shall be ignored but it is useful to check it for debug
     //printf("%02x\n",ack);
 }

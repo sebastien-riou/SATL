@@ -28,4 +28,4 @@ Use python script under `basic/drivers/<driver_name>/test_<driver_name>.py`
 ## C99 vs Python implementation tests
 
 To test the C99 as master, use `basic/drivers/<driver_name>/test_<driver_name>_master.py`
-To test the C99 as master, use `basic/drivers/<driver_name>/test_<driver_name>_slave.py`
+To test the C99 as slave, use `basic/drivers/<driver_name>/test_<driver_name>_slave.py`

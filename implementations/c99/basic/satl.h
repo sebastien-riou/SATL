@@ -70,6 +70,12 @@ typedef struct SATL_ctx_struct_t SATL_ctx_t;
 #error "this implementation supports only 1,2 and 4 for SATL_SFR_GRANULARITY"
 #endif
 
+#if defined(SATL_VERBOSE)
+    #define SATL_PRINTF(str,...) printf(str __VA_OPT__(,) __VA_ARGS__)
+#else
+    #define SATL_PRINTF(str,...)
+#endif
+
 typedef struct SATL_ctx_struct_t {
     SATL_driver_ctx_t driver_ctx;//keep this as first member to avoid constant addition each time we call driver functions
     uint32_t fl;//remaining bytes in this frame
@@ -88,7 +94,7 @@ typedef struct SATL_ctx_struct_t {
 #define DCTX (&(ctx->driver_ctx))
 
 static void SATL_safe_tx(SATL_ctx_t*const ctx,const void*const buf,uint32_t len){
-    //printf("SATL_safe_tx len=%u\n",len);
+    SATL_PRINTF("SATL_safe_tx len=%u\n",len);
     const uint8_t* buf8 = (const uint8_t*)buf;
     if(ctx->buf_level){
         if(ctx->buf_level+len > SATL_SFR_GRANULARITY){
@@ -113,11 +119,11 @@ static void SATL_safe_tx(SATL_ctx_t*const ctx,const void*const buf,uint32_t len)
         SATL_tx(DCTX,ctx->buf,SATL_SFR_GRANULARITY);
         ctx->buf_level=0;
     }
-    //printf("safe tx buf level=%u\n",ctx->buf_level);
+    SATL_PRINTF("safe tx buf level=%u\n",ctx->buf_level);
 }
 
 static void SATL_safe_final_tx(SATL_ctx_t*const ctx,const void*const buf,uint32_t len){
-    //printf("SATL_safe_final_tx len=%u\n",len);
+    SATL_PRINTF("SATL_safe_final_tx len=%u\n",len);
     const uint8_t* buf8 = (const uint8_t*)buf;
     //printf("ctx->buf_level=%u\n",ctx->buf_level);
     if(ctx->buf_level){
@@ -145,21 +151,21 @@ static void SATL_safe_final_tx(SATL_ctx_t*const ctx,const void*const buf,uint32_
 }
 
 static void SATL_rx_dat(SATL_ctx_t*const ctx, void*const dat, uint32_t data_len){
-    //printf("SATL_rx_dat len=%u\n",data_len);
-    //printf("ctx->remaining=%u,ctx->fl=%u\n",ctx->remaining,ctx->fl);
+    SATL_PRINTF("SATL_rx_dat len=%u\n",data_len);
+    SATL_PRINTF("ctx->remaining=%u,ctx->fl=%u\n",ctx->remaining,ctx->fl);
     uint8_t*data = (uint8_t*)dat;
     assert(ctx->remaining>=data_len);
     uint32_t remaining = data_len;
     if(remaining){
         uint32_t rx_level = SATL_get_rx_level(DCTX);
-        //printf("rx_level=%u, remaining=%u\n",rx_level,remaining);
+        SATL_PRINTF("rx_level=%u, remaining=%u\n",rx_level,remaining);
         if(rx_level){//get left over from previous read
             unsigned int l = remaining < rx_level ? remaining : rx_level;
             SATL_rx(DCTX,data,l);
             remaining -= l;
             data += l;
         }
-        //printf("remaining=%u\n",remaining);
+        SATL_PRINTF("remaining=%u\n",remaining);
         while(remaining){//need to fill driver buffer
             if((data_len!=remaining)||(0!=ctx->fl)){
                 //send ack except for the very first rx in the frame
@@ -172,11 +178,11 @@ static void SATL_rx_dat(SATL_ctx_t*const ctx, void*const dat, uint32_t data_len)
         }
         ctx->remaining -= data_len;
     }
-    //printf("SATL_rx_dat return\n");
+    SATL_PRINTF("SATL_rx_dat return\n");
 }
 
 static void SATL_tx_dat(SATL_ctx_t*const ctx, const void *const data, uint32_t len){
-    //printf("SATL_tx_dat len=%u\n",len);
+    SATL_PRINTF("SATL_tx_dat len=%u\n",len);
     if(0==len) return;
     assert(ctx->fl>=len);
     const uint8_t *d=(const uint8_t *)data;
@@ -238,7 +244,7 @@ static void SATL_master_tx_dat(SATL_ctx_t*const ctx, const void *const data, uin
 }
 
 static uint32_t SATL_master_tx_lengths(SATL_ctx_t*const ctx, uint32_t lc, uint32_t le){
-    //printf("SATL_master_tx_lengths lc=%u, le=%u\n",lc,le);
+    SATL_PRINTF("SATL_master_tx_lengths lc=%u, le=%u\n",lc,le);
     uint32_t flle[2];
     flle[0] = lc + sizeof(SATL_capdu_header_t) + 2*SATL_LEN_LEN;
     flle[1] = le;
@@ -256,12 +262,13 @@ static void SATL_master_tx_hdr(SATL_ctx_t*const ctx, const SATL_capdu_header_t*c
 }
 
 static void SATL_master_tx_full(SATL_ctx_t*const ctx, const SATL_capdu_header_t*const hdr,uint32_t lc, uint32_t le, const void*const dat){
-    //printf("SATL_master_tx_full\n");
+    SATL_PRINTF("SATL_master_tx_full\n");
     SATL_master_tx_hdr(ctx, hdr, lc, le);
     SATL_master_tx_dat(ctx, dat, lc);
 }
 
 static void SATL_master_rx_le(SATL_ctx_t*const ctx, uint32_t*const le){
+    SATL_PRINTF("SATL_master_rx_le ----------------------- \n");
     const uint32_t min_fl = (sizeof(SATL_capdu_header_t)+2*SATL_LEN_LEN);
     ctx->remaining = min_fl;
     ctx->fl=0;
@@ -274,22 +281,26 @@ static void SATL_master_rx_le(SATL_ctx_t*const ctx, uint32_t*const le){
 }
 
 static void SATL_master_rx_dat(SATL_ctx_t*const ctx, void*const dat, uint32_t len){
+    SATL_PRINTF("SATL_master_rx_dat len=%u\n",len);
     SATL_rx_dat(ctx,dat,len);
 }
 static void SATL_master_rx_sw(SATL_ctx_t*const ctx, SATL_rapdu_sw_t*const sw){
-    //printf("SATL_master_rx_sw\n");
+    SATL_PRINTF("SATL_master_rx_sw\n");
     assert(0==ctx->remaining);
+    SATL_PRINTF("ctx->fl=%u, ctx->buf_len=%u, ctx->fl mod ctx->buf_len = %u\n",ctx->fl,ctx->buf_len,ctx->fl % ctx->buf_len);
     switch(ctx->fl % ctx->buf_len){
-        case 0:  SATL_tx_ack(DCTX);//fall through
+        case 0:
+            if(ctx->buf_len!=1) {SATL_final_rx(DCTX,sw,sizeof(SATL_rapdu_sw_t)); break;}  
+            SATL_tx_ack(DCTX);//fall through
         case 1:  SATL_rx(DCTX,sw,1);SATL_tx_ack(DCTX);SATL_final_rx(DCTX,&(sw->SW2),1);break;
         case 2:  SATL_tx_ack(DCTX);SATL_final_rx(DCTX,sw,sizeof(SATL_rapdu_sw_t));break;
         default: SATL_final_rx(DCTX,sw,sizeof(SATL_rapdu_sw_t));
     }
     ctx->fl = 0;
-    //printf("SATL_master_rx_sw done\n");
+    SATL_PRINTF("SATL_master_rx_sw done -------------------------\n");
 }
 static void SATL_master_rx_full(SATL_ctx_t*const ctx, uint32_t *const le, void*const data,SATL_rapdu_sw_t*const sw){
-    //printf("SATL_master_rx_full\n");
+    SATL_PRINTF("SATL_master_rx_full\n");
     SATL_master_rx_le(ctx,le);
     //printf("le=%u\n",*le);
     SATL_master_rx_dat(ctx,data,*le);
@@ -316,22 +327,23 @@ static uint32_t SATL_slave_init(SATL_ctx_t*const ctx, void *const hw){
 }
 
 static void SATL_slave_rx_dat(SATL_ctx_t*const ctx, void*const data, uint32_t len){
-    //printf("SATL_slave_rx_dat %u\n",len);
+    SATL_PRINTF("SATL_slave_rx_dat %u\n",len);
     SATL_rx_dat(ctx,data,len);
 }
 
 static void SATL_slave_rx_hdr(SATL_ctx_t*const ctx, SATL_capdu_header_t*hdr,uint32_t *lc, uint32_t *le){
-    //printf("SATL_slave_rx_hdr\n");
+    SATL_PRINTF("SATL_slave_rx_hdr entry\n");
     const uint32_t min_fl = (sizeof(SATL_capdu_header_t)+2*SATL_LEN_LEN);
     ctx->remaining = min_fl;
     ctx->fl=0;
     SATL_rx_dat(ctx,&(ctx->fl),SATL_LEN_LEN);
-    //printf("ctx->fl=%u\n",ctx->fl);
+    SATL_PRINTF("ctx->fl=%u\n",ctx->fl);
     ctx->remaining = ctx->fl - SATL_LEN_LEN;
     *lc = ctx->fl-sizeof(SATL_capdu_header_t)-2*SATL_LEN_LEN;
     assert(ctx->fl>=min_fl);
     SATL_slave_rx_dat(ctx,le,SATL_LEN_LEN);
     SATL_slave_rx_dat(ctx,hdr,sizeof(SATL_capdu_header_t));
+    SATL_PRINTF("SATL_slave_rx_hdr exit\n");
 }
 
 static void SATL_slave_rx_full(SATL_ctx_t*const ctx, SATL_capdu_header_t*hdr,uint32_t *lc, uint32_t *le, uint8_t*data){
@@ -340,7 +352,7 @@ static void SATL_slave_rx_full(SATL_ctx_t*const ctx, SATL_capdu_header_t*hdr,uin
 }
 
 static void SATL_slave_tx_le(SATL_ctx_t*const ctx, uint32_t le){
-    //printf("SATL_slave_tx_le le=%u\n",le);
+    SATL_PRINTF("SATL_slave_tx_le le=%u\n",le);
     SATL_switch_to_tx(DCTX);
     uint32_t fl = SATL_LEN_LEN+le+sizeof(SATL_rapdu_sw_t);
     ctx->remaining = ctx->buf_len;;
@@ -360,10 +372,13 @@ static void SATL_slave_tx_dat(SATL_ctx_t*const ctx, const void *const data, uint
 }
 
 static void SATL_slave_tx_sw(SATL_ctx_t*const ctx, const SATL_rapdu_sw_t*const sw){
-    //printf("SATL_slave_tx_sw\n");
+    SATL_PRINTF("SATL_slave_tx_sw\n");
     //printf("fl mod SATL_MBLEN = %u\n",ctx->fl%SATL_MBLEN);
     assert(2==sizeof(SATL_rapdu_sw_t));//if this change the code below needs update
     //printf("ctx->remaining=%u\n",ctx->remaining);
+    //uint32_t rx_level = SATL_get_rx_level(DCTX);
+    //SATL_PRINTF("rx_level=%u\n",rx_level);
+    //assert(0==rx_level);
     if(0==(ctx->flags & SATL_LE_SENT)) SATL_slave_tx_le(ctx,0);
     if(ctx->remaining==1){
         SATL_safe_tx(ctx,&(sw->SW1),1);

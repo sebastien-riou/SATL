@@ -127,17 +127,17 @@ else:
     master_com = pysatl.SocketComDriver(link,buffer_length,link_granularity,sfr_granularity,ack)
     master = pysatl.PySatl(is_master=True,com_driver=master_com,skip_init=skip_init)
     apdu = pysatl.CAPDU(CLA=1,INS=2,P1=3,P2=4)
-    print(apdu)
+    print(apdu, flush=True)
     master.tx(apdu)
     response = master.rx()
-    print(response)
+    print(response, flush=True)
 
     #test error case with LC data
-    apdu = pysatl.CAPDU(CLA=0xFE,INS=2,P1=3,P2=4,DATA=bytearray([1,2,3,4,5,6]))
-    print(apdu)
-    master.tx(apdu)
-    response = master.rx()
-    print(response)
+    #apdu = pysatl.CAPDU(CLA=0xFE,INS=2,P1=3,P2=4,DATA=bytearray([1,2,3,4,5,6]))
+    #print(apdu)
+    #master.tx(apdu)
+    #response = master.rx()
+    #print(response)
 
     def test_lengths(lc,le,rle):
         assert(lc<=1<<16)
@@ -145,10 +145,10 @@ else:
         assert(rle<=le)
         lcdat=refdat[0:lc]
         capdu = pysatl.CAPDU(CLA=1,INS=rle>>16,P1=(rle>>8) & 0xFF,P2=rle & 0xFF,DATA=lcdat,LE=le)
-        #print(capdu)
+        #print(capdu, flush=True)
         master.tx(capdu)
         response = master.rx()
-        #print(response)
+        #print(response, flush=True)
         assert(len(response.DATA) == rle)
         assert(response.SW1 == 0x90)
         assert(response.SW2 == 0x00)
@@ -156,9 +156,17 @@ else:
         assert(lcdat[0:l]==response.DATA[0:l])
         assert(refdatle[0:rle-l]==response.DATA[l:rle])
 
+    #for i in range(0,2):
+    #    test_lengths(269,269,268)
+    #print(apdu, flush=True)
+    #master.tx(apdu)
+    #response = master.rx()
+    #print(response, flush=True)
+
     basic_test_lengths = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,254,255,256,257,258,259,260,261,262,263,264,265,266,267,268,269,65533,65534,65535,65536]
+    #basic_test_lengths = [269]
     for lc in basic_test_lengths:
-        print(lc)
+        print(lc, flush=True)
         for le in basic_test_lengths:
             for rle in [0,1,2,3,le-3,le-2,le-1,le]:
                 if (rle<le) & (rle>=0):
@@ -166,11 +174,11 @@ else:
 
     if long_test:
         for lc in range(0,(1<<16)+1):
-            print(lc)
+            print(lc, flush=True)
             test_lengths(lc,lc,lc)
 
         for lc in range(0,1000):
-            print(lc)
+            print(lc, flush=True)
             for le in range(0,1000):
                 #for rle in range(0,le+1):
                 test_lengths(lc,le,le)
@@ -179,7 +187,7 @@ else:
     #tell the slave to quit
     master.tx(pysatl.CAPDU(CLA=0xFF,INS=2,P1=3,P2=4))
     response = master.rx()
-    print(response)
+    print(response, flush=True)
     time.sleep(1)
-    print("done")
+    print("done", flush=True)
     #input("Press enter to quit ")

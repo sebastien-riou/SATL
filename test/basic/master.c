@@ -9,6 +9,9 @@
 
 int sockfd = 0;
 
+//#define SATL_VERBOSE
+//#define SATL_TESIC_APB_MASTER_VERBOSE
+
 #define SATL_TEST_MASTER
 #include "satl_test_com.h"
 
@@ -150,6 +153,10 @@ int main(int argc, char *argv[]){
         assert(sw.SW2==0x00);
         assert(0==le);
     }
+
+    //test_case(0,263,262);
+    test_case(257,0,0);
+    test_case(0,1,1);
 
     uint32_t test_lengths[] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,254,255,256,257,258,259,260,261,262,263,264,265,266,267,268,269,65533,65534,65535,65536};
     for(unsigned int i=0;i<NUM_ELEMS(test_lengths);i++){

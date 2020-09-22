@@ -13,6 +13,8 @@
 #include <assert.h>
 int sockfd = 0;
 
+//#define SATL_VERBOSE
+//#define SATL_TESIC_APB_SLAVE_VERBOSE
 
 #define SATL_TEST_SLAVE
 #include "satl_test_com.h"

@@ -16,11 +16,12 @@ def build_test(role,name):
         os.makedirs(BIN)
 
     main = '../../'+role+'.c'
-    emu = name+'_emu.c'
-    if os.path.exists(emu):
-        files = [main,emu]
-    else:
-        files = main
+    files = main
+
+    for emu in [name+'_emu.c',name+'_'+role+'_emu.c']:
+        if os.path.exists(emu):
+            files = [main,emu]
+
     compile(files,np(BIN,role+'_'+name),libs)
 
 def build_tests(name):
