@@ -10,17 +10,23 @@
                 }while(0)
 
         #define SATL_TESIC_APB_PRINTF(str,...) print(str)
+        //#define TESIC_APB_GET_BUF_SPY(ctx,idx) TESIC_APB_GET_BUF(ctx,idx)
     #else
+        //#define SATL_TESIC_APB_PRINTF(str,...) printf(str __VA_OPT__(,) __VA_ARGS__)
+        #define SATL_TESIC_APB_PRINTF printk
         #define PRINT_APB_STATE(str) do{\
-                    printf("%s",str);\
-                    printf(" CFG=%08x ",SATL_TESIC_APB_GET_CFG());\
-                    printf("CNT=%08x\n",SATL_TESIC_APB_GET_CNT());\
+                    SATL_TESIC_APB_PRINTF("%s",str);\
+                    SATL_TESIC_APB_PRINTF(" CFG=%08x ",SATL_TESIC_APB_GET_CFG());\
+                    SATL_TESIC_APB_PRINTF("CNT=%08x\n",SATL_TESIC_APB_GET_CNT());\
                 }while(0)
-        #define SATL_TESIC_APB_PRINTF(str,...) printf(str __VA_OPT__(,) __VA_ARGS__)
+
+       
+        //#define TESIC_APB_GET_BUF_SPY(ctx,idx) tesic_apb_get_buf_spy(ctx,idx)
     #endif
 #else
 #define PRINT_APB_STATE(str)
 #define SATL_TESIC_APB_PRINTF(str,...)
+//#define TESIC_APB_GET_BUF_SPY(ctx,idx) TESIC_APB_GET_BUF(ctx,idx)
 #endif
 
 #define TESIC_APB_MASTER_SIDE
@@ -54,8 +60,22 @@
 #define SATL_TESIC_APB_SET_CFG(val)       TESIC_APB_SET_CFG(SATL_TESIC_APB,val)
 #define SATL_TESIC_APB_GET_CNT()          TESIC_APB_GET_CNT(SATL_TESIC_APB)
 #define SATL_TESIC_APB_SET_CNT(val)       TESIC_APB_SET_CNT(SATL_TESIC_APB,val)
-#define SATL_TESIC_APB_GET_BUF(idx)       TESIC_APB_GET_BUF(SATL_TESIC_APB,idx)
-#define SATL_TESIC_APB_SET_BUF(idx,val)   TESIC_APB_SET_BUF(SATL_TESIC_APB,idx,val)
+#if defined(SATL_TESIC_APB_MASTER_VERBOSE)
+    static uint32_t tesic_apb_get_buf_spy(TESIC_APB_t*ctx,unsigned int idx){
+        uint32_t out = TESIC_APB_GET_BUF(ctx,idx);
+        SATL_TESIC_APB_PRINTF("READ WORD at %3u: 0x%08x\n",idx*4,out);
+        return out;
+    } 
+    static void tesic_apb_set_buf_spy(TESIC_APB_t*ctx,unsigned int idx, uint32_t val){
+        TESIC_APB_SET_BUF(ctx,idx,val);
+        SATL_TESIC_APB_PRINTF("WRITE WORD at %3u: 0x%08x\n",idx*4,val);
+    } 
+    #define SATL_TESIC_APB_GET_BUF(idx)       tesic_apb_get_buf_spy(SATL_TESIC_APB,idx)
+    #define SATL_TESIC_APB_SET_BUF(idx,val)   tesic_apb_set_buf_spy(SATL_TESIC_APB,idx,val)
+#else        
+    #define SATL_TESIC_APB_GET_BUF(idx)       TESIC_APB_GET_BUF(SATL_TESIC_APB,idx)
+    #define SATL_TESIC_APB_SET_BUF(idx,val)   TESIC_APB_SET_BUF(SATL_TESIC_APB,idx,val)
+#endif
 #define SATL_TESIC_APB_OWNER_IS_MASTER()  TESIC_APB_OWNER_IS_MASTER(SATL_TESIC_APB)
 #define SATL_TESIC_APB_OWNER_IS_SLAVE()   TESIC_APB_OWNER_IS_SLAVE(SATL_TESIC_APB)
 
@@ -106,9 +126,10 @@ static void SATL_switch_to_tx(SATL_driver_ctx_t *const ctx){
 //this allows to support several calls to SATL_tx to prepare the buffer
 //buffer is actually sent when SATL_tx_flush_switch_to_rx is called
 static void SATL_tx(SATL_driver_ctx_t *const ctx,const void*const buf,unsigned int len){
-    SATL_TESIC_APB_PRINTF("SATL_tx %u\n",len);
+    PRINT_APB_STATE("SATL_tx");
+    SATL_TESIC_APB_PRINTF("len=%u\n",len);
     assert(len);
-    //println("SATL_tx");
+    SATL_TESIC_APB_PRINTF("SATL_TESIC_APB_GET_CFG()=0x%08x\n",SATL_TESIC_APB_GET_CFG());
     assert(SATL_TESIC_APB_OWNER_IS_MASTER());
     assert(0 == (len % sizeof(uint32_t) ));//check SFR granularity requirement
     assert(SATL_TESIC_APB_GET_CNT()+len<=TESIC_APB_BUF_LEN);//check buffer length requirement
@@ -134,8 +155,9 @@ static void SATL_tx(SATL_driver_ctx_t *const ctx,const void*const buf,unsigned i
 }
 
 static void SATL_final_tx(SATL_driver_ctx_t *const ctx,const void*const buf,unsigned int len){
-    SATL_TESIC_APB_PRINTF("SATL_final_tx %u\n",len);
-    //println("SATL_final_tx");
+    PRINT_APB_STATE("SATL_final_tx");
+    SATL_TESIC_APB_PRINTF("len=%u\n",len);
+    SATL_TESIC_APB_PRINTF("SATL_TESIC_APB_GET_CFG()=0x%08x\n",SATL_TESIC_APB_GET_CFG());
     assert(SATL_TESIC_APB_OWNER_IS_MASTER());
     unsigned int safe_len = len & 0x1FFFC;
     if(safe_len) SATL_tx(ctx, buf,safe_len);
@@ -150,12 +172,14 @@ static void SATL_final_tx(SATL_driver_ctx_t *const ctx,const void*const buf,unsi
     }
     ctx->rx_pos=SATL_TESIC_APB_INVALID;
     ctx->rx_buf_level=SATL_TESIC_APB_INVALID;
+    PRINT_APB_STATE("SATL_final_tx exit (before giving ownership");
     SATL_TESIC_APB_SET_CFG(SATL_MASTER_IRQ | TESIC_APB_CFG_MASTER_STS_MASK | TESIC_APB_CFG_OWNER_MASK);//set status and give buffer ownership to slave side
+    PRINT_APB_STATE("SATL_final_tx exit (after giving ownership");
 }
 
 static void SATL_wait_rx_event(SATL_driver_ctx_t *const ctx){
-    SATL_TESIC_APB_PRINTF("SATL_wait_rx_event\n");
-    assert(SATL_TESIC_APB_OWNER_IS_SLAVE());
+    PRINT_APB_STATE("SATL_wait_rx_event");
+    assert(SATL_TESIC_APB_OWNER_IS_SLAVE());//cannot check that when using interrupts, sometimes the other side is faster
 
     #ifdef SATL_USE_IRQ
         SATL_WAIT_RX_EVENT();
@@ -164,6 +188,8 @@ static void SATL_wait_rx_event(SATL_driver_ctx_t *const ctx){
             SATL_WAIT_RX_EVENT_YIELD();
         }
     #endif
+    SATL_TESIC_APB_SET_CFG(SATL_MASTER_IRQ);//get control of CNT and BUF
+    PRINT_APB_STATE("SATL_wait_rx_event exit");
 }
 
 static void SATL_generic_rx(SATL_driver_ctx_t *const ctx,void*buf,unsigned int len){
@@ -174,7 +200,7 @@ static void SATL_generic_rx(SATL_driver_ctx_t *const ctx,void*buf,unsigned int l
         ctx->rx_pos=0;
         ctx->rx_buf_level=0;
     }else{
-        //println("skip wait for rx event");
+        SATL_TESIC_APB_PRINTF("skip wait for rx event");
     }
     assert(ctx->rx_pos+len-ctx->rx_buf_level<=SATL_TESIC_APB_GET_CNT());//check buffer length requirement
     uint8_t* buf8 = (uint8_t*)buf;
@@ -228,9 +254,9 @@ static void SATL_final_rx(SATL_driver_ctx_t *const ctx,void*buf,unsigned int len
 }
 
 static void SATL_tx_ack(SATL_driver_ctx_t *const ctx){
-    SATL_TESIC_APB_PRINTF("SATL_tx_ack\n");
+    PRINT_APB_STATE("SATL_tx_ack");
     SATL_TESIC_APB_PRINTF("ctx->rx_buf_level=%u, ctx->rx_pos=%u\n",ctx->rx_buf_level,ctx->rx_pos);
-    assert(SATL_TESIC_APB_OWNER_IS_SLAVE());
+    //assert(SATL_TESIC_APB_OWNER_IS_SLAVE());
     assert(0==ctx->rx_buf_level);
     ctx->rx_pos=SATL_TESIC_APB_INVALID;
     ctx->rx_buf_level=SATL_TESIC_APB_INVALID;
