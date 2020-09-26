@@ -71,8 +71,11 @@ typedef struct SATL_ctx_struct_t SATL_ctx_t;
 #endif
 
 #if defined(SATL_VERBOSE)
-    #define SATL_PRINTF(str,...) printf(str __VA_OPT__(,) __VA_ARGS__)
+    #ifndef SATL_PRINTF
+        #define SATL_PRINTF(str,...) printf(str __VA_OPT__(,) __VA_ARGS__)
+    #endif
 #else
+    #undef SATL_PRINTF
     #define SATL_PRINTF(str,...)
 #endif
 
