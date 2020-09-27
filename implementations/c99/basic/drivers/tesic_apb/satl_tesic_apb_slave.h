@@ -2,25 +2,59 @@
 #define __SATL_TESIC_APB_SLAVE_H__
 
 #if defined(SATL_TESIC_APB_SLAVE_VERBOSE)
+
+    #define STR(s) #s
+    #define XSTR(s) STR(s)
+
     #ifdef __PRINT_H__
         #define PRINT_APB_STATE(str) do{\
                     print(str);\
-                    print32x(" CFG=",SATL_TESIC_APB_GET_CFG()," ");\
-                    println32x("CNT=",SATL_TESIC_APB_GET_CNT());\
+                    print32x(" CFG=0x",SATL_TESIC_APB_GET_CFG()," ");\
+                    println32x("CNT=0x",SATL_TESIC_APB_GET_CNT());\
                 }while(0)
 
         #define SATL_TESIC_APB_PRINTF(str,...) print(str)
+        #define SATL_TESIC_APB_PRINT_CTX(str) do{\
+                    print(str);\
+                    print32x(" rx_pos=0x",ctx->rx_pos," ");\
+                    print32x("rx_buf_level=0x",ctx->rx_buf_level," ");\
+                    println32x("rx_buf=0x",ctx->rx_buf);\
+                }while(0)
+        #define SATL_TESIC_APB_PRINT_HEX32(name) do{\
+                    print(#name);\
+                    print32x("\t= 0x",*((uint32_t*)(&(name)))," ");\
+                }while(0)
+        #define SATL_TESIC_APB_PRINT_HEXUI(name) do{\
+                    print(#name);\
+                    print32x("\t= 0x",*((unsigned int*)(&(name)))," ");\
+                }while(0)
     #else
         #define PRINT_APB_STATE(str) do{\
                     printf("%s",str);\
-                    printf(" CFG=%08x ",SATL_TESIC_APB_GET_CFG());\
-                    printf("CNT=%08x\n",SATL_TESIC_APB_GET_CNT());\
+                    printf(" CFG=0x%08x ",SATL_TESIC_APB_GET_CFG());\
+                    printf("CNT=0x%08x\n",SATL_TESIC_APB_GET_CNT());\
                 }while(0)
         #define SATL_TESIC_APB_PRINTF(str,...) printf(str __VA_OPT__(,) __VA_ARGS__)
+        #define SATL_TESIC_APB_PRINT_CTX(str)
+        #define SATL_TESIC_APB_PRINT_HEX32(name)
+        #define SATL_TESIC_APB_PRINT_HEXUI(name)
     #endif
+
+    #define PRINT_ABP_BUF() do{\
+            unsigned int nwords = (SATL_TESIC_APB_GET_CNT() + 3)/ 4;\
+            println32x("nwords=0x",nwords);\
+            for(unsigned int i=0;i<nwords;i++){\
+                print8d("BUF[",i,"] = ");\
+                println32x("0x",SATL_TESIC_APB_GET_BUF(i));\
+            }\
+        }while(0)           
 #else
-#define PRINT_APB_STATE(str)
-#define SATL_TESIC_APB_PRINTF(str,...)
+    #define PRINT_APB_STATE(str)
+    #define SATL_TESIC_APB_PRINTF(str,...)
+    #define SATL_TESIC_APB_PRINT_CTX(str)
+    #define SATL_TESIC_APB_PRINT_HEX32(name)
+    #define SATL_TESIC_APB_PRINT_HEXUI(name)
+    #define PRINT_ABP_BUF()   
 #endif
 
 #include "tesic_apb.h"
@@ -56,7 +90,8 @@ typedef struct SATL_driver_ctx_struct_t {
 static uint32_t SATL_get_rx_level(const SATL_driver_ctx_t *ctx){
     PRINT_APB_STATE("SATL_get_rx_level");
     if(!SATL_TESIC_APB_OWNER_IS_SLAVE()) return 0;
-    if(SATL_TESIC_APB_INVALID==ctx->rx_pos) return 0;//we are in TX mode
+    //assert(SATL_TESIC_APB_INVALID!=ctx->rx_pos);
+    if(SATL_TESIC_APB_INVALID==ctx->rx_pos) return 0;//we are in TX mode OR RX before actual reception of the frame
     return SATL_TESIC_APB_GET_CNT()-ctx->rx_pos+ctx->rx_buf_level;
 }
 
@@ -67,8 +102,8 @@ static uint32_t SATL_get_tx_level(const SATL_driver_ctx_t *ctx){
 
 static uint32_t SATL_slave_init_driver( SATL_driver_ctx_t*const ctx, void *hw){
     ctx->rx_buf = 0;
-    ctx->rx_pos = 0;
-    ctx->rx_buf_level = 0;
+    ctx->rx_pos = SATL_TESIC_APB_INVALID;
+    ctx->rx_buf_level = SATL_TESIC_APB_INVALID;
     ctx->hw = hw;
     PRINT_APB_STATE("init");
     //skip initialization phase as APB is meant for intra SOC communication
@@ -89,9 +124,9 @@ static void SATL_switch_to_tx(SATL_driver_ctx_t *const ctx){
 //this allows to support several calls to SATL_tx to prepare the buffer
 //buffer is actually sent when SATL_tx_flush_switch_to_rx is called
 static void SATL_tx(SATL_driver_ctx_t *const ctx,const void*const buf,unsigned int len){
-    //println32x("SATL_tx 0x",len);
     PRINT_APB_STATE("SATL_tx entry");
     assert(SATL_TESIC_APB_OWNER_IS_SLAVE());
+    if(0==len) return;
     assert(0 == (len % sizeof(uint32_t) ));//check SFR granularity requirement
     assert(SATL_TESIC_APB_GET_CNT()+len<=TESIC_APB_BUF_LEN);//check buffer length requirement
     uint32_t stack_buf[TESIC_APB_BUF_DWORDS];
@@ -109,21 +144,25 @@ static void SATL_tx(SATL_driver_ctx_t *const ctx,const void*const buf,unsigned i
     }
     SATL_TESIC_APB_SET_CNT((base+nwords)*sizeof(uint32_t));
     if(TESIC_APB_BUF_LEN == SATL_TESIC_APB_GET_CNT()){//buffer full, send data
-        ctx->rx_pos=0;
+        //ctx->rx_pos=0;
         ctx->rx_buf_level=0;
+        PRINT_APB_STATE("SATL_tx before giving buffer");
+        PRINT_ABP_BUF();
         SATL_TESIC_APB_SET_CFG(TESIC_APB_CFG_SLAVE_STS_MASK);//set status and give buffer ownership to master side
     }
     PRINT_APB_STATE("SATL_tx exit");
 }
 
 static void SATL_final_tx(SATL_driver_ctx_t *const ctx,const void*const buf,unsigned int len){
-    //println32x("SATL_final_tx 0x",len);
     PRINT_APB_STATE("SATL_final_tx entry");
+    SATL_TESIC_APB_PRINT_HEXUI(len);
     assert(SATL_TESIC_APB_OWNER_IS_SLAVE());
     unsigned int safe_len = len & 0x1FFFC;
+    ctx->rx_buf_level=SATL_TESIC_APB_INVALID;//used to detect if SATL_tx sends the buffer
     SATL_tx(ctx, buf,safe_len);
     unsigned int remaining = len & 0x3;
     if(remaining){//write the last word
+        ctx->rx_buf_level=SATL_TESIC_APB_INVALID;
         uint32_t w;
         const uint8_t*const buf8 = (const uint8_t*const)buf;
         memcpy(&w,buf8+safe_len,remaining);
@@ -131,21 +170,32 @@ static void SATL_final_tx(SATL_driver_ctx_t *const ctx,const void*const buf,unsi
         SATL_TESIC_APB_SET_BUF(base,w);
         SATL_TESIC_APB_SET_CNT(base * sizeof(uint32_t)+remaining);
     }
-    ctx->rx_pos=0;
-    ctx->rx_buf_level=0;
-    SATL_TESIC_APB_SET_CFG(TESIC_APB_CFG_SLAVE_STS_MASK);//set status and give buffer ownership to master side
-    PRINT_APB_STATE("SATL_final_tx exit");
+    if(SATL_TESIC_APB_INVALID==ctx->rx_buf_level){
+        PRINT_APB_STATE("SATL_final_tx exit (before giving buffer)");
+        PRINT_ABP_BUF();
+        SATL_TESIC_APB_SET_CFG(TESIC_APB_CFG_SLAVE_STS_MASK);//set status and give buffer ownership to master side
+    }else{
+        PRINT_APB_STATE("SATL_final_tx exit (buffer already given by SATL_tx)");
+    }
+    //ctx->rx_pos=SATL_TESIC_APB_INVALID;
+    ctx->rx_buf_level=SATL_TESIC_APB_INVALID;
 }
 
 static void SATL_generic_rx(SATL_driver_ctx_t *const ctx,void*buf,unsigned int len){
     PRINT_APB_STATE("SATL_generic_rx");
-    SATL_TESIC_APB_PRINTF("len=0x%x",len);
-    while(0 == (SATL_TESIC_APB_GET_CFG() & TESIC_APB_CFG_MASTER_STS_MASK));
+    if(SATL_TESIC_APB_INVALID==ctx->rx_buf_level){
+        ctx->rx_pos=0;
+        ctx->rx_buf_level=0;
+    }
+    SATL_TESIC_APB_PRINT_HEXUI(len);
+    while(0 == (SATL_TESIC_APB_GET_CFG() & TESIC_APB_CFG_MASTER_STS_MASK)){
+        PRINT_APB_STATE("wait rx loop");
+    }
     assert(SATL_TESIC_APB_OWNER_IS_SLAVE());
-    SATL_TESIC_APB_PRINTF("ctx->rx_pos=%u, ctx->rx_buf_level=%u, SATL_TESIC_APB_GET_CNT()=%u\n",ctx->rx_pos, ctx->rx_buf_level, SATL_TESIC_APB_GET_CNT());
+    PRINT_APB_STATE("\towner is slave:");
+    SATL_TESIC_APB_PRINT_CTX("");
     assert(ctx->rx_pos+len-ctx->rx_buf_level<=SATL_TESIC_APB_GET_CNT());//check buffer length requirement
     uint8_t* buf8 = (uint8_t*)buf;
-    SATL_TESIC_APB_PRINTF("ctx->rx_buf_level=%u, len=%u, ctx->rx_pos=%u\n",ctx->rx_buf_level,len, ctx->rx_pos);
     while(ctx->rx_buf_level && len){
         buf8[0] = ctx->rx_buf;
         ctx->rx_buf=ctx->rx_buf>>8;
@@ -153,7 +203,8 @@ static void SATL_generic_rx(SATL_driver_ctx_t *const ctx,void*buf,unsigned int l
         len--;
         ctx->rx_buf_level--;
     }
-    SATL_TESIC_APB_PRINTF("ctx->rx_buf_level=%u, len=%u\n",ctx->rx_buf_level,len);
+    SATL_TESIC_APB_PRINT_HEXUI(len);
+    SATL_TESIC_APB_PRINT_CTX("");
     const unsigned int nwords = len / sizeof(uint32_t);
     const unsigned int base = ctx->rx_pos / sizeof(uint32_t);
     if(((uintptr_t)buf) & 0x3){//unaligned destination
@@ -173,7 +224,8 @@ static void SATL_generic_rx(SATL_driver_ctx_t *const ctx,void*buf,unsigned int l
     ctx->rx_pos += 4*nwords;
     len -= 4*nwords;
     if(len){
-        SATL_TESIC_APB_PRINTF("len=%u, ctx->rx_pos=%u\n",len, ctx->rx_pos);
+        SATL_TESIC_APB_PRINT_HEXUI(len);
+        SATL_TESIC_APB_PRINT_CTX("");
         buf8 += 4*nwords;
         ctx->rx_buf = SATL_TESIC_APB_GET_BUF(base+nwords);
         ctx->rx_buf_level = 4-len;
@@ -181,16 +233,15 @@ static void SATL_generic_rx(SATL_driver_ctx_t *const ctx,void*buf,unsigned int l
         memcpy(buf8,&ctx->rx_buf,len);
         ctx->rx_buf = ctx->rx_buf >> (len*8);
     }
-    SATL_TESIC_APB_PRINTF("ctx->rx_buf_level=%u, ctx->rx_pos=%u\n",ctx->rx_buf_level,ctx->rx_pos);
+    SATL_TESIC_APB_PRINT_HEXUI(len);
+    SATL_TESIC_APB_PRINT_CTX("");
 }
 
 static void SATL_rx(SATL_driver_ctx_t *const ctx,void*buf,unsigned int len){
-    //println32x("SATL_rx 0x",len);
     SATL_generic_rx(ctx,buf,len);
 }
 
 static void SATL_final_rx(SATL_driver_ctx_t *const ctx,void*buf,unsigned int len){
-    //println32x("SATL_final_rx 0x",len);
     SATL_generic_rx(ctx,buf,len);
 }
 
@@ -198,19 +249,20 @@ static void SATL_final_rx(SATL_driver_ctx_t *const ctx,void*buf,unsigned int len
 static void SATL_tx_ack(SATL_driver_ctx_t *const ctx){
     PRINT_APB_STATE("SATL_tx_ack entry");
     assert(SATL_TESIC_APB_OWNER_IS_SLAVE());
-    SATL_TESIC_APB_PRINTF("ctx->rx_buf_level=%u, ctx->rx_pos=%u\n",ctx->rx_buf_level,ctx->rx_pos);
+    SATL_TESIC_APB_PRINT_CTX("");
     assert(0==ctx->rx_buf_level);
     ctx->rx_pos=0;
     ctx->rx_buf_level=0;
     SATL_TESIC_APB_SET_CNT(0);
+    PRINT_APB_STATE("SATL_tx_ack exit (before giving buffer)");
     SATL_TESIC_APB_SET_CFG(TESIC_APB_CFG_SLAVE_STS_MASK);//set status and give buffer ownership to master side
-    PRINT_APB_STATE("SATL_tx_ack exit");
 }
 
 static void SATL_rx_ack(SATL_driver_ctx_t *const ctx){
     PRINT_APB_STATE("SATL_rx_ack ");
-    while(0 == (SATL_TESIC_APB_GET_CFG() & TESIC_APB_CFG_MASTER_STS_MASK));
-    //println("received");
+    while(0 == (SATL_TESIC_APB_GET_CFG() & TESIC_APB_CFG_MASTER_STS_MASK)){
+        PRINT_APB_STATE("wait rx ack loop");
+    }
     assert(SATL_TESIC_APB_OWNER_IS_SLAVE());
     assert(0 == SATL_TESIC_APB_GET_CNT());
 }
