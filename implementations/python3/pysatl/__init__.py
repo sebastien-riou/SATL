@@ -537,7 +537,7 @@ class Utils(object):
         except:
             #seems arg is not a string, assume it is a int
             try:
-                out = int_to_ba(hexstr_or_int)
+                out = Utils.int_to_ba(hexstr_or_int)
             except:
                 # seems arg is not an int, assume it is a list
                 try:
