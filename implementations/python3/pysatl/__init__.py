@@ -1,6 +1,6 @@
 """Library to transport ISO7816-4 APDUs over anything"""
 
-__version__ = '1.2.0'
+__version__ = '1.2.1'
 __title__ = 'pysatl'
 __description__ = 'Library to transport ISO7816-4 APDUs over anything'
 __long_description__ = """
