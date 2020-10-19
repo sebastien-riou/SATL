@@ -173,7 +173,7 @@ int main(int argc, char *argv[]){
 
     if(0xFFFFFFFF==rx_chunk_size){
         for(unsigned int i=0;i<1000;i++){
-            test_case(8,8,8);
+            test_case(0x14,0x14,0x14);
         }
     }
     //test_case(0,263,262);
