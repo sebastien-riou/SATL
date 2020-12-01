@@ -1,6 +1,7 @@
 """Library to transport ISO7816-4 APDUs over anything"""
+import io
 
-__version__ = '1.2.1'
+__version__ = '1.2.2'
 __title__ = 'pysatl'
 __description__ = 'Library to transport ISO7816-4 APDUs over anything'
 __long_description__ = """
@@ -238,6 +239,7 @@ class CAPDU(object):
             self.DATA = bytearray()
         self.LE = LE
 
+
     def __str__(self):
         out = "C-APDU %02X %02X %02X %02X"%(self.CLA,self.INS,self.P1,self.P2)
         if len(self.DATA) > 0:
@@ -246,6 +248,125 @@ class CAPDU(object):
         if self.LE>0:
             out += " - LE=%5d"%(self.LE)
         return out
+
+    def __repr__(self):
+        return "pysatl.CAPDU.from_hexstr('"+self.to_hexstr()+"')"
+
+    def __eq__(self, other):
+        """Overrides the default implementation"""
+        if isinstance(other, CAPDU):
+            ours = self.__dict__.items()
+            theirs = other.__dict__.items()
+            return ours == theirs
+        return NotImplemented
+
+    @staticmethod
+    def from_bytes(apdu_bytes):
+        # CAPDU FORMATS:
+        # CASE1:  CLA INS P1 P2
+        # CASE2S: CLA INS P1 P2 LE                 (                       LE  from 01   to   FF)
+        # CASE2E: CLA INS P1 P2 00 LE2             (                       LE2 from 0001 to 0000)
+        # CASE3S: CLA INS P1 P2 LC DATA            (LC  from   01 to   FF                       )
+        # CASE3E: CLA INS P1 P2 00 LC2 DATA        (LC2 from 0001 to FFFF                       )
+        # CASE4S: CLA INS P1 P2 LC DATA LE         (LC  from   01 to   FF  LE2 from 0001 to 0000)
+        # CASE4E: CLA INS P1 P2 LC DATA 00 LE2     (LC  from   01 to   FF, LE2 from 0001 to 0000)
+        # CASE4E: CLA INS P1 P2 00 LC2 DATA LE     (LC2 from 0001 to FFFF, LE  from 01   to   FF)
+        # CASE4E: CLA INS P1 P2 00 LC2 DATA 00 LE2 (LC2 from 0001 to FFFF, LE2 from 0001 to 0000)
+        apdu_len=len(apdu_bytes)
+        abytes = io.BytesIO(apdu_bytes)
+        header = abytes.read(4)
+        lc = 0
+        le = 0
+        has_le = 0
+        has_long_le = 0
+        if apdu_len>4:
+            p3 = int.from_bytes(abytes.read(1),byteorder='big')
+            if apdu_len==5:
+                has_le = 1
+                le = p3
+                if 0==le:
+                    le=0x100
+            elif 0==p3:
+                if apdu_len==7:
+                    has_le=1
+                    has_long_le = 1
+                    le = int.from_bytes(abytes.read(2), byteorder='big')
+                    if 0==le:
+                        le = 0x10000
+                else:
+                    lc = int.from_bytes(abytes.read(2),byteorder='big')
+                    if apdu_len>(4+3+lc):
+                        has_le = 1
+                        has_long_le = apdu_len>(4+3+lc+1)
+            else:
+                lc = p3
+                if apdu_len>(4+1+lc):
+                    has_le = 1
+                    has_long_le = apdu_len>(4+1+lc+1)
+        has_lc = lc>0
+        has_long_lc = lc>255
+        DATA = None
+        if has_lc:
+            len_no_le = 5 + 2 * has_long_lc + lc
+            remaining = apdu_len - len_no_le
+            if remaining:
+                has_le = 1
+                if remaining>1:
+                    has_long_le = 1
+            DATA = abytes.read(lc)
+            if has_le:
+                if has_long_le:
+                    le = int.from_bytes(abytes.read(3),byteorder='big')
+                    assert(le <= 0xFFFF )
+                    if 0 == le:
+                        le = 0x10000
+                else:
+                    le = int.from_bytes(abytes.read(1), byteorder='big')
+                    if 0 == le:
+                        le = 0x100
+        return CAPDU(CLA=header[0],INS=header[1],P1=header[2],P2=header[3],DATA=DATA,LE=le)
+
+    def to_ba(self):
+        out = bytearray()
+        out.append(self.CLA)
+        out.append(self.INS)
+        out.append(self.P1)
+        out.append(self.P2)
+        LC = len(self.DATA)
+        LE = self.LE
+        if LC > 0:
+            if LC > 0xFF:
+                out.append(0x00)
+                out += LC.to_bytes(2, byteorder='big')
+            else:
+                out += LC.to_bytes(1, byteorder='big')
+            out += self.DATA
+        if LE > 0:
+            if LE == 0x10000:
+                out.append(0x00)
+                out.append(0x00)
+                out.append(0x00)
+            elif LE > 0x100:
+                out.append(0x00)
+                out += LE.to_bytes(2, byteorder='big')
+            elif LE == 0x100:
+                out.append(0x00)
+            else:
+                out += LE.to_bytes(1, byteorder='big')
+        return out
+
+    def to_bytes(self):
+        return bytes(self.to_ba())
+
+    @staticmethod
+    def from_hexstr(hexstr):
+        b = Utils.ba(hexstr)
+        return CAPDU.from_bytes(b)
+
+    def to_hexstr(self):
+        b = self.to_ba()
+        return Utils.hexstr(b, separator="")
+
 
 class RAPDU(object):
     """ISO7816-4 R-APDU
@@ -526,14 +647,15 @@ class Utils(object):
             t3 = t2.split(" ")
             out = bytearray()
             for bstr in t3:
+                if bstr[0:2] == "0x":
+                    bstr = bstr[2:]
                 if bstr != "":
                     l = len(bstr)
                     if(l % 2):
                         bstr = "0"+bstr
                         l+=1
-                    for p in range(0,l,2):
-                        s=bstr[p:p+2]
-                        out.extend((bytearray.fromhex(s)))
+                    out += bytearray.fromhex(bstr)
+
         except:
             #seems arg is not a string, assume it is a int
             try:
