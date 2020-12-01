@@ -47,14 +47,16 @@
                 print8d("BUF[",i,"] = ");\
                 println32x("0x",SATL_TESIC_APB_GET_BUF(i));\
             }\
-        }while(0)           
+        }while(0)
+    #define PRINT_BUF(msg,buf,nbytes) println_bytes(msg,buf,nbytes);
 #else
     #define PRINT_APB_STATE(str)
     #define SATL_TESIC_APB_PRINTF(str,...)
     #define SATL_TESIC_APB_PRINT_CTX(str)
     #define SATL_TESIC_APB_PRINT_HEX32(name)
     #define SATL_TESIC_APB_PRINT_HEXUI(name)
-    #define PRINT_ABP_BUF()   
+    #define PRINT_ABP_BUF()
+    #define PRINT_BUF(msg,buf,nbytes)
 #endif
 
 #include "tesic_apb.h"
@@ -144,7 +146,6 @@ static void SATL_tx(SATL_driver_ctx_t *const ctx,const void*const buf,unsigned i
     }
     SATL_TESIC_APB_SET_CNT((base+nwords)*sizeof(uint32_t));
     if(TESIC_APB_BUF_LEN == SATL_TESIC_APB_GET_CNT()){//buffer full, send data
-        //ctx->rx_pos=0;
         ctx->rx_buf_level=0;
         PRINT_APB_STATE("SATL_tx before giving buffer");
         PRINT_ABP_BUF();
@@ -177,29 +178,33 @@ static void SATL_final_tx(SATL_driver_ctx_t *const ctx,const void*const buf,unsi
     }else{
         PRINT_APB_STATE("SATL_final_tx exit (buffer already given by SATL_tx)");
     }
-    //ctx->rx_pos=SATL_TESIC_APB_INVALID;
     ctx->rx_buf_level=SATL_TESIC_APB_INVALID;
 }
 
 static void SATL_generic_rx(SATL_driver_ctx_t *const ctx,void*buf,unsigned int len){
     PRINT_APB_STATE("SATL_generic_rx");
+    #ifdef SATL_TESIC_APB_SLAVE_VERBOSE_RX_DATA
+      const unsigned int input_len=len;
+    #endif
     if(SATL_TESIC_APB_INVALID==ctx->rx_buf_level){
         ctx->rx_pos=0;
         ctx->rx_buf_level=0;
     }
     SATL_TESIC_APB_PRINT_HEXUI(len);
     while(0 == (SATL_TESIC_APB_GET_CFG() & TESIC_APB_CFG_MASTER_STS_MASK)){
+        #ifdef SATL_TESIC_APB_SLAVE_VERBOSE_RX_LOOP
         PRINT_APB_STATE("wait rx loop");
+        #endif
     }
     assert(SATL_TESIC_APB_OWNER_IS_SLAVE());
     PRINT_APB_STATE("\towner is slave:");
     SATL_TESIC_APB_PRINT_CTX("");
     assert(ctx->rx_pos+len-ctx->rx_buf_level<=SATL_TESIC_APB_GET_CNT());//check buffer length requirement
-    uint8_t* buf8 = (uint8_t*)buf;
+    uint8_t* outwr = (uint8_t*)buf;
     while(ctx->rx_buf_level && len){
-        buf8[0] = ctx->rx_buf;
+        outwr[0] = ctx->rx_buf;
         ctx->rx_buf=ctx->rx_buf>>8;
-        buf8++;
+        outwr++;
         len--;
         ctx->rx_buf_level--;
     }
@@ -207,16 +212,16 @@ static void SATL_generic_rx(SATL_driver_ctx_t *const ctx,void*buf,unsigned int l
     SATL_TESIC_APB_PRINT_CTX("");
     const unsigned int nwords = len / sizeof(uint32_t);
     const unsigned int base = ctx->rx_pos / sizeof(uint32_t);
-    if(((uintptr_t)buf) & 0x3){//unaligned destination
+    if(((uintptr_t)outwr) & 0x3){//unaligned destination
         for(unsigned int i=0;i<nwords;i++){
             uint32_t w = SATL_TESIC_APB_GET_BUF(base+i);
-            buf8[i*4+0] = w;
-            buf8[i*4+1] = w>>8;
-            buf8[i*4+2] = w>>16;
-            buf8[i*4+3] = w>>24;
+            outwr[i*4+0] = w;
+            outwr[i*4+1] = w>>8;
+            outwr[i*4+2] = w>>16;
+            outwr[i*4+3] = w>>24;
         }
     } else {
-        uint32_t*aligned_buf = (uint32_t*)buf;
+        uint32_t*aligned_buf = (uint32_t*)outwr;
         for(unsigned int i=0;i<nwords;i++){
             aligned_buf[i] = SATL_TESIC_APB_GET_BUF(base+i);
         }
@@ -226,15 +231,18 @@ static void SATL_generic_rx(SATL_driver_ctx_t *const ctx,void*buf,unsigned int l
     if(len){
         SATL_TESIC_APB_PRINT_HEXUI(len);
         SATL_TESIC_APB_PRINT_CTX("");
-        buf8 += 4*nwords;
+        outwr += 4*nwords;
         ctx->rx_buf = SATL_TESIC_APB_GET_BUF(base+nwords);
         ctx->rx_buf_level = 4-len;
         ctx->rx_pos += 4;
-        memcpy(buf8,&ctx->rx_buf,len);
+        memcpy(outwr,&ctx->rx_buf,len);
         ctx->rx_buf = ctx->rx_buf >> (len*8);
     }
     SATL_TESIC_APB_PRINT_HEXUI(len);
     SATL_TESIC_APB_PRINT_CTX("");
+    #ifdef SATL_TESIC_APB_SLAVE_VERBOSE_RX_DATA
+      PRINT_BUF("rx dat:",buf,input_len);
+    #endif
 }
 
 static void SATL_rx(SATL_driver_ctx_t *const ctx,void*buf,unsigned int len){
