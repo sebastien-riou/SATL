@@ -6,6 +6,7 @@
 #include <assert.h>
 
 #include <stdint.h>
+#include "prand32.h"
 
 int sockfd = 0;
 
@@ -46,8 +47,24 @@ void master_tx_apdu(SATL_ctx_t*const ctx, SATL_capdu_header_t*hdr,uint32_t lc, u
 void master_rx_apdu(SATL_ctx_t*const ctx, uint32_t *le, void *const dat,SATL_rapdu_sw_t* const sw){
     uint8_t * data = (uint8_t *const) dat;
     if(0==rx_chunk_size){
-        //write the whole APDU in one go
+        //process the whole APDU in one go
         SATL_master_rx_full(ctx, le, data, sw);
+    }else if(0xFFFFFFFF==rx_chunk_size){
+        //process the whole APDU in one go
+        //SATL_master_rx_full(ctx, le, data, sw);
+        //split into several random sized reads
+        SATL_master_rx_le(ctx, le);
+        uint32_t remaining = *le;
+        //printf("master rx read_size: ");
+        while(remaining){
+            uint32_t read_size = prand32_in_range(0,remaining);
+            //printf("%4u ",read_size);
+            SATL_master_rx_dat(ctx, data, read_size);
+            data+=read_size;
+            remaining-=read_size;
+        }
+        //printf("master rx done\n");
+        SATL_master_rx_sw(ctx, sw);
     }else{
         //simulate environment with limited buffering capability
         SATL_master_rx_le(ctx, le);
@@ -110,10 +127,10 @@ int main(int argc, char *argv[]){
 
     unsigned int long_test=0;
     uint32_t port = 5000;
-    if(argc>1) port = atoi(argv[1]);
-    if(argc>2) tx_chunk_size = atoi(argv[2]);
-    if(argc>3) rx_chunk_size = atoi(argv[3]);
-    if(argc>4) long_test = atoi(argv[4]);
+    if(argc>1) port = strtol(argv[1], 0, 0);
+    if(argc>2) tx_chunk_size = strtol(argv[2], 0, 0);
+    if(argc>3) rx_chunk_size = strtol(argv[3], 0, 0);
+    if(argc>4) long_test = strtol(argv[4], 0, 0);
 
     for(unsigned int i=0;i<(1<<16)+1;i++){
         refdat[i] = i;
@@ -154,6 +171,11 @@ int main(int argc, char *argv[]){
         assert(0==le);
     }
 
+    if(0xFFFFFFFF==rx_chunk_size){
+        for(unsigned int i=0;i<1000;i++){
+            test_case(8,8,8);
+        }
+    }
     //test_case(0,263,262);
     test_case(257,0,0);
     test_case(0,1,1);

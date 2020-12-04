@@ -11,6 +11,8 @@
 #include <time.h>
 
 #include <assert.h>
+#include "prand32.h"
+
 int sockfd = 0;
 
 //#define SATL_VERBOSE
@@ -31,6 +33,19 @@ void slave_rx_apdu(SATL_ctx_t*const ctx, SATL_capdu_header_t*hdr,uint32_t *lc, u
     if(0==rx_chunk_size){
         //read the whole APDU in one go
         SATL_slave_rx_full(ctx, hdr,lc, le, data);
+    }else if(0xFFFFFFFF==rx_chunk_size){
+        //split into several random sized reads
+        SATL_slave_rx_hdr(ctx, hdr,lc, le);
+        uint32_t remaining = *lc;
+        //printf("slave rx read_size: ");
+        while(remaining){
+            uint32_t read_size = prand32_in_range(0,remaining);
+            //printf("%4u ",read_size);
+            SATL_slave_rx_dat(ctx, data, read_size);
+            data+=read_size;
+            remaining-=read_size;
+        }
+        //printf("slave rx done.\n");
     }else{
         //simulate environment with limited buffering capability
         SATL_slave_rx_hdr(ctx, hdr,lc, le);
@@ -143,5 +158,5 @@ int main(int argc, char *argv[]){
     close(sockfd);
     //printf("socket closed\n");
     printf("slave done\n");
-    
+
 }

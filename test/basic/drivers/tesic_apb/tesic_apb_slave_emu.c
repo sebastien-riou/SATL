@@ -267,7 +267,7 @@ uint32_t emu_rd_buf(TESIC_APB_t*ctx, unsigned int idx){
 }
 void emu_wr_cfg(TESIC_APB_t*ctx,uint32_t val){
     //printf("write CFG=0x%08X\n",val);
-    ctx->CFG = (val & 0xFFFF0000) | 0x0AAB;
+    ctx->CFG = (val & 0xFFFE0000) | 0x0AAB;
     set_updated_state(ctx);
 }
 void emu_wr_cnt(TESIC_APB_t*ctx,uint32_t val){
