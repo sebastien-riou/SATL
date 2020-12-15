@@ -95,6 +95,9 @@ A single R-TPDU format cover all cases
 * PAD
   * 0 or more bytes
 
+## Mapping of APDU cases to SATL full frames
+See [this page](apdu_cases_full_frames.md)
+
 ## Command - Response exchanges
 
 The master initiate the communication by sending a command TPDU. splitting it in chunks as needed. The slave answer with a response TPDU, splitting it in chunks as needed. If the slave does not support the command, it shall nevertheless receive the full command TPDU and send the error as a properly formated response TPDU. If the master receives a response TPDU indicating an unexpected LE value, it shall receive the full response TPDU or reinitialize the slave (by means of reset, power off/power on ...).

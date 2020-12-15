@@ -1,7 +1,7 @@
 """Library to transport ISO7816-4 APDUs over anything"""
 import io
 
-__version__ = '1.2.2'
+__version__ = '1.2.3'
 __title__ = 'pysatl'
 __description__ = 'Library to transport ISO7816-4 APDUs over anything'
 __long_description__ = """
@@ -62,9 +62,29 @@ class PySatl(object):
         """int: buffer length of the other side"""
         return self._other_bufferlen
 
+    @property
+    def spy_frame_tx(self):
+        """functions called to spy on each tx frame, without padding"""
+        return self._spy_frame_tx
+
+    @spy_frame_tx.setter
+    def spy_frame_tx(self, value):
+        self._spy_frame_tx = value
+
+    @property
+    def spy_frame_rx(self):
+        """functions called to spy on each rx frame, without padding"""
+        return self._spy_frame_rx
+
+    @spy_frame_rx.setter
+    def spy_frame_rx(self, value):
+        self._spy_frame_rx = value
+
     def __init__(self,is_master,com_driver,skip_init=False):
         self._com = com_driver
-        self._is_master=is_master
+        self._is_master = is_master
+        self._spy_frame_tx = None
+        self._spy_frame_rx = None
 
         if self.com.ack & (False==skip_init):
             #this models the buffer length of the other side
@@ -170,8 +190,11 @@ class PySatl(object):
 
     def __frame_tx(self,data):
         """send a complete frame (either a C-TPDU or a R-TPDU), taking care of padding and splitting in chunk"""
+
+        if self._spy_frame_tx is not None:
+            self._spy_frame_tx(data)
+
         data=self.__pad(data)
-        #print("__frame_tx: padded frame to send: ",data,flush=True)
 
         if len(data) < self.other_bufferlen:
             self.com.tx(data)
@@ -197,7 +220,10 @@ class PySatl(object):
         data = flbytes+self.__rx(remaining)
         #remove padding
         data = data[0:fl]
-        #print("received frame: ",data,flush=True)
+
+        if self._spy_frame_rx is not None:
+            self._spy_frame_rx(data)
+
         return data
 
     def __rx(self,length):
@@ -240,14 +266,17 @@ class CAPDU(object):
         self.LE = LE
 
 
-    def __str__(self):
+    def to_str(self,*,skip_long_data=False):
         out = "C-APDU %02X %02X %02X %02X"%(self.CLA,self.INS,self.P1,self.P2)
         if len(self.DATA) > 0:
             out += " - LC=%5d DATA: "%(len(self.DATA))
-            out += Utils.hexstr(self.DATA)
+            out += Utils.hexstr(self.DATA,skip_long_data=skip_long_data)
         if self.LE>0:
             out += " - LE=%5d"%(self.LE)
         return out
+
+    def __str__(self):
+        return self.to_str()
 
     def __repr__(self):
         return "pysatl.CAPDU.from_hexstr('"+self.to_hexstr()+"')"
@@ -363,10 +392,20 @@ class CAPDU(object):
         b = Utils.ba(hexstr)
         return CAPDU.from_bytes(b)
 
-    def to_hexstr(self):
+    def to_hexstr(self,*,skip_long_data=False):
         b = self.to_ba()
-        return Utils.hexstr(b, separator="")
-
+        header_len = 4
+        lc=len(self.DATA)
+        if lc:
+            header_len = 5
+            if lc>255:
+                header_len = 7
+        dat = Utils.hexstr(b[:header_len], separator="")
+        if lc:
+            dat += Utils.hexstr(b[header_len:header_len+lc], separator="",skip_long_data=True)
+        if self.LE:
+            dat += Utils.hexstr(b[header_len+lc:], separator="")
+        return dat
 
 class RAPDU(object):
     """ISO7816-4 R-APDU
@@ -383,12 +422,50 @@ class RAPDU(object):
         self.SW1 = SW1
         self.SW2 = SW2
 
-    def __str__(self):
+    def to_str(self,*,skip_long_data=False):
         out = "R-APDU %02X %02X"%(self.SW1,self.SW2)
         if len(self.DATA) > 0:
             out += " - LE=%5d DATA: "%(len(self.DATA))
-            out += Utils.hexstr(self.DATA)
+            out += Utils.hexstr(self.DATA,skip_long_data=skip_long_data)
         return out
+
+    def __str__(self):
+        return self.to_str()
+
+    def __repr__(self):
+        return "pysatl.RAPDU.from_hexstr('"+self.to_hexstr()+"')"
+
+    @staticmethod
+    def from_bytes(apdu_bytes):
+        l = len(apdu_bytes)-2
+        assert(l >= 0)
+        data = apdu_bytes[0:l-1]
+        sw1 = apdu_bytes[-2]
+        sw2 = apdu_bytes[-1]
+        return RAPDU(SW1=sw1,SW2=sw2,DATA=data)
+
+    def to_ba(self):
+        out = bytearray()
+        out += self.DATA
+        out.append(self.SW1)
+        out.append(self.SW2)
+        return out
+
+    def to_bytes(self):
+        return bytes(self.to_ba())
+
+    @staticmethod
+    def from_hexstr(hexstr):
+        b = Utils.ba(hexstr)
+        return RAPDU.from_bytes(b)
+
+    def to_hexstr(self,*,skip_long_data=False):
+        b = self.to_ba()
+        if len(b)>16:
+            dat = Utils.hexstr(b[:-2], separator="",skip_long_data=True) + Utils.hexstr(b[-2:], separator="")
+        else:
+            dat = Utils.hexstr(b, separator="")
+        return dat
 
 class SocketComDriver(object):
     """Parameterized model for a communication peripheral and low level rx/tx functions
@@ -599,7 +676,7 @@ class Utils(object):
         return granularity * nunits - l
 
     @staticmethod
-    def hexstr(bytes, head="", separator=" ", tail=""):
+    def hexstr(bytes, head="", separator=" ", tail="", *,skip_long_data=False):
         """Returns an hex string representing bytes
 
         Args:
@@ -614,6 +691,11 @@ class Utils(object):
             return ""
         else:
             pformat = head+"%-0.2X"+tail
+            l=len(bytes)
+            if skip_long_data and l>16:
+                first = pformat % ((bytes[ 0] + 256) % 256)
+                last  = pformat % ((bytes[-1] + 256) % 256)
+                return (separator.join([first,"...%d bytes..."%(l-2),last])).rstrip()
             return (separator.join(map(lambda a: pformat % ((a + 256) % 256), bytes))).rstrip()
 
     @staticmethod

@@ -1,0 +1,198 @@
+# APDU cases mapping to SATL full frames
+This page establish the mapping between three views of C-APDU and R-APDU:
+- Raw hexadecimal representation
+- User friendly string representation of pysatl.CAPDU and pysatl.RAPDU objects
+- Full SATL frames without padding
+
+## Raw hexadecimal representation
+C-APDU formats:
+````
+CASE1:  CLA INS P1 P2
+CASE2S: CLA INS P1 P2 LE                 (                       LE  from 01   to   FF)
+CASE2E: CLA INS P1 P2 00 LE2             (                       LE2 from 0001 to 0000)
+CASE3S: CLA INS P1 P2 LC DATA            (LC  from   01 to   FF                       )
+CASE3E: CLA INS P1 P2 00 LC2 DATA        (LC2 from 0001 to FFFF                       )
+CASE4S: CLA INS P1 P2 LC DATA LE         (LC  from   01 to   FF  LE2 from 0001 to 0000)
+CASE4E: CLA INS P1 P2 LC DATA 00 LE2     (LC  from   01 to   FF, LE2 from 0001 to 0000)
+CASE4E: CLA INS P1 P2 00 LC2 DATA LE     (LC2 from 0001 to FFFF, LE  from 01   to   FF)
+CASE4E: CLA INS P1 P2 00 LC2 DATA 00 LE2 (LC2 from 0001 to FFFF, LE2 from 0001 to 0000)
+````
+
+R-APDU format:
+````
+DATA SW1 SW2
+````
+
+## Short APDUs mapping
+
+### CASE 1:
+````
+C-APDU hexstr: 01000000
+C-APDU 01 00 00 00
+MASTER FRAME TX: 0C 00 00 00 00 00 00 00 01 00 00 00
+MASTER FRAME RX: 06 00 00 00 90 00
+R-APDU 90 00
+R-APDU hexstr: 9000
+````
+
+### CASE 2S min:
+````
+C-APDU hexstr: 0100000101
+C-APDU 01 00 00 01 - LE=    1
+MASTER FRAME TX: 0C 00 00 00 01 00 00 00 01 00 00 01
+MASTER FRAME RX: 07 00 00 00 FF 90 00
+R-APDU 90 00 - LE=    1 DATA: FF
+R-APDU hexstr: FF9000
+````
+
+### CASE 2S max:
+````
+C-APDU hexstr: 0100010000
+C-APDU 01 00 01 00 - LE=  256
+MASTER FRAME TX: 0C 00 00 00 00 01 00 00 01 00 01 00
+MASTER FRAME RX: 06 01 00 00 FF ...254 bytes... 00 90 00
+R-APDU 90 00 - LE=  256 DATA: FF ...254 bytes... 00
+R-APDU hexstr: FF...254 bytes...009000
+````
+
+### CASE 3S min:
+````
+C-APDU hexstr: 010000000100
+C-APDU 01 00 00 00 - LC=    1 DATA: 00
+MASTER FRAME TX: 0D 00 00 00 00 00 00 00 01 00 00 00 00
+MASTER FRAME RX: 06 00 00 00 90 00
+R-APDU 90 00
+R-APDU hexstr: 9000
+````
+
+### CASE 3S max:
+````
+C-APDU hexstr: 01000000FF00...253 bytes...FE
+C-APDU 01 00 00 00 - LC=  255 DATA: 00 ...253 bytes... FE
+MASTER FRAME TX: 0B 01 00 00 00 00 00 00 01 00 00 00 00 ...253 bytes... FE
+MASTER FRAME RX: 06 00 00 00 90 00
+R-APDU 90 00
+R-APDU hexstr: 9000
+````
+
+### CASE 4S min:
+````
+C-APDU hexstr: 01000001010001
+C-APDU 01 00 00 01 - LC=    1 DATA: 00 - LE=    1
+MASTER FRAME TX: 0D 00 00 00 01 00 00 00 01 00 00 01 00
+MASTER FRAME RX: 07 00 00 00 00 90 00
+R-APDU 90 00 - LE=    1 DATA: 00
+R-APDU hexstr: 009000
+````
+
+### CASE 4S max:
+````
+C-APDU hexstr: 01000100FF00...253 bytes...FE00
+C-APDU 01 00 01 00 - LC=  255 DATA: 00 ...253 bytes... FE - LE=  256
+MASTER FRAME TX: 0B 01 00 00 00 01 00 00 01 00 01 00 00 ...253 bytes... FE
+MASTER FRAME RX: 06 01 00 00 00 ...254 bytes... FF 90 00
+R-APDU 90 00 - LE=  256 DATA: 00 ...254 bytes... FF
+R-APDU hexstr: 00...254 bytes...FF9000
+````
+
+## Extended APDUs mapping
+
+### CASE 2E min:
+````
+C-APDU hexstr: 01000101000101
+C-APDU 01 00 01 01 - LE=  257
+MASTER FRAME TX: 0C 00 00 00 01 01 00 00 01 00 01 01
+MASTER FRAME RX: 07 01 00 00 FF ...255 bytes... FF 90 00
+R-APDU 90 00 - LE=  257 DATA: FF ...255 bytes... FF
+R-APDU hexstr: FF...255 bytes...FF9000
+````
+
+### CASE 2E max:
+````
+C-APDU hexstr: 01010000000000
+C-APDU 01 01 00 00 - LE=65536
+MASTER FRAME TX: 0C 00 00 00 00 00 01 00 01 01 00 00
+MASTER FRAME RX: 06 00 01 00 FF ...65534 bytes... 00 90 00
+R-APDU 90 00 - LE=65536 DATA: FF ...65534 bytes... 00
+R-APDU hexstr: FF...65534 bytes...009000
+````
+
+### CASE 3E min:
+````
+C-APDU hexstr: 0100000000010000...254 bytes...FF
+C-APDU 01 00 00 00 - LC=  256 DATA: 00 ...254 bytes... FF
+MASTER FRAME TX: 0C 01 00 00 00 00 00 00 01 00 00 00 00 ...254 bytes... FF
+MASTER FRAME RX: 06 00 00 00 90 00
+R-APDU 90 00
+R-APDU hexstr: 9000
+````
+
+### CASE 3E max:
+````
+C-APDU hexstr: 0100000000FFFF00...65533 bytes...FE
+C-APDU 01 00 00 00 - LC=65535 DATA: 00 ...65533 bytes... FE
+MASTER FRAME TX: 0B 00 01 00 00 00 00 00 01 00 00 00 00 ...65533 bytes... FE
+MASTER FRAME RX: 06 00 00 00 90 00
+R-APDU 90 00
+R-APDU hexstr: 9000
+````
+
+### CASE 4E min 1:
+````
+C-APDU hexstr: 0100000100010000...254 bytes...FF01
+C-APDU 01 00 00 01 - LC=  256 DATA: 00 ...254 bytes... FF - LE=    1
+MASTER FRAME TX: 0C 01 00 00 01 00 00 00 01 00 00 01 00 ...254 bytes... FF
+MASTER FRAME RX: 07 00 00 00 00 90 00
+R-APDU 90 00 - LE=    1 DATA: 00
+R-APDU hexstr: 009000
+````
+
+### CASE 4E min 2:
+````
+C-APDU hexstr: 010001010100000101
+C-APDU 01 00 01 01 - LC=    1 DATA: 00 - LE=  257
+MASTER FRAME TX: 0D 00 00 00 01 01 00 00 01 00 01 01 00
+MASTER FRAME RX: 07 01 00 00 00 ...255 bytes... 00 90 00
+R-APDU 90 00 - LE=  257 DATA: 00 ...255 bytes... 00
+R-APDU hexstr: 00...255 bytes...009000
+````
+
+### CASE 4E min 3:
+````
+C-APDU hexstr: 0100010100010000...254 bytes...FF000101
+C-APDU 01 00 01 01 - LC=  256 DATA: 00 ...254 bytes... FF - LE=  257
+MASTER FRAME TX: 0C 01 00 00 01 01 00 00 01 00 01 01 00 ...254 bytes... FF
+MASTER FRAME RX: 07 01 00 00 00 ...255 bytes... FF 90 00
+R-APDU 90 00 - LE=  257 DATA: 00 ...255 bytes... FF
+R-APDU hexstr: 00...255 bytes...FF9000
+````
+
+### CASE 4E max 1:
+````
+C-APDU hexstr: 0100000100FFFF00...65533 bytes...FE01
+C-APDU 01 00 00 01 - LC=65535 DATA: 00 ...65533 bytes... FE - LE=    1
+MASTER FRAME TX: 0B 00 01 00 01 00 00 00 01 00 00 01 00 ...65533 bytes... FE
+MASTER FRAME RX: 07 00 00 00 00 90 00
+R-APDU 90 00 - LE=    1 DATA: 00
+R-APDU hexstr: 009000
+````
+
+### CASE 4E max 2:
+````
+C-APDU hexstr: 01010000020001000000
+C-APDU 01 01 00 00 - LC=    2 DATA: 00 01 - LE=65536
+MASTER FRAME TX: 0E 00 00 00 00 00 01 00 01 01 00 00 00 01
+MASTER FRAME RX: 06 00 01 00 00 ...65534 bytes... 02 90 00
+R-APDU 90 00 - LE=65536 DATA: 00 ...65534 bytes... 02
+R-APDU hexstr: 00...65534 bytes...029000
+````
+
+### CASE 4E max 3:
+````
+C-APDU hexstr: 0101000000FFFF00...65533 bytes...FE000000
+C-APDU 01 01 00 00 - LC=65535 DATA: 00 ...65533 bytes... FE - LE=65536
+MASTER FRAME TX: 0B 00 01 00 00 00 01 00 01 01 00 00 00 ...65533 bytes... FE
+MASTER FRAME RX: 06 00 01 00 00 ...65534 bytes... FF 90 00
+R-APDU 90 00 - LE=65536 DATA: 00 ...65534 bytes... FF
+R-APDU hexstr: 00...65534 bytes...FF9000
+````
