@@ -59,6 +59,18 @@
     #define PRINT_BUF(msg,buf,nbytes)
 #endif
 
+#ifdef SATL_USE_IRQ
+    #define SATL_SLAVE_IRQ (TESIC_APB_CFG_SLAVE_ITEN_MASK)
+    #ifndef SATL_WAIT_RX_EVENT
+        #error "When SATL_USE_IRQ is defined, user must define SATL_WAIT_RX_EVENT()"
+    #endif
+#else
+    #define SATL_SLAVE_IRQ 0
+    #ifndef SATL_WAIT_RX_EVENT_YIELD
+    #define SATL_WAIT_RX_EVENT_YIELD()
+    #endif
+#endif
+
 #include "tesic_apb.h"
 
 #define SATL_ACK 1
@@ -107,6 +119,7 @@ static uint32_t SATL_slave_init_driver( SATL_driver_ctx_t*const ctx, void *hw){
     ctx->rx_pos = SATL_TESIC_APB_INVALID;
     ctx->rx_buf_level = SATL_TESIC_APB_INVALID;
     ctx->hw = hw;
+    SATL_TESIC_APB_SET_CFG(SATL_SLAVE_IRQ);
     PRINT_APB_STATE("init");
     //skip initialization phase as APB is meant for intra SOC communication
     return TESIC_APB_BUF_LEN;
@@ -117,6 +130,7 @@ static void SATL_switch_to_tx(SATL_driver_ctx_t *const ctx){
     assert(SATL_TESIC_APB_OWNER_IS_SLAVE());
     assert(ctx->rx_pos == (SATL_TESIC_APB_GET_CNT()+ctx->rx_buf_level));//check that all data sent by master has been read
     SATL_TESIC_APB_SET_CNT(0);
+    SATL_TESIC_APB_SET_CFG(SATL_SLAVE_IRQ);
     ctx->rx_pos=SATL_TESIC_APB_INVALID;
     ctx->rx_buf_level=SATL_TESIC_APB_INVALID;
     PRINT_APB_STATE("SATL_switch_to_tx exit");
@@ -149,7 +163,7 @@ static void SATL_tx(SATL_driver_ctx_t *const ctx,const void*const buf,unsigned i
         ctx->rx_buf_level=0;
         PRINT_APB_STATE("SATL_tx before giving buffer");
         PRINT_ABP_BUF();
-        SATL_TESIC_APB_SET_CFG(TESIC_APB_CFG_SLAVE_STS_MASK);//set status and give buffer ownership to master side
+        SATL_TESIC_APB_SET_CFG(SATL_SLAVE_IRQ | TESIC_APB_CFG_SLAVE_STS_MASK);//set status and give buffer ownership to master side
     }
     PRINT_APB_STATE("SATL_tx exit");
 }
@@ -174,11 +188,26 @@ static void SATL_final_tx(SATL_driver_ctx_t *const ctx,const void*const buf,unsi
     if(SATL_TESIC_APB_INVALID==ctx->rx_buf_level){
         PRINT_APB_STATE("SATL_final_tx exit (before giving buffer)");
         PRINT_ABP_BUF();
-        SATL_TESIC_APB_SET_CFG(TESIC_APB_CFG_SLAVE_STS_MASK);//set status and give buffer ownership to master side
+        SATL_TESIC_APB_SET_CFG(SATL_SLAVE_IRQ | TESIC_APB_CFG_SLAVE_STS_MASK);//set status and give buffer ownership to master side
     }else{
         PRINT_APB_STATE("SATL_final_tx exit (buffer already given by SATL_tx)");
     }
     ctx->rx_buf_level=SATL_TESIC_APB_INVALID;
+}
+
+static void SATL_wait_rx_event(SATL_driver_ctx_t *const ctx){
+    PRINT_APB_STATE("SATL_wait_rx_event");
+    #ifdef SATL_USE_IRQ
+        SATL_WAIT_RX_EVENT();
+    #else
+        while(0 == (SATL_TESIC_APB_GET_CFG() & TESIC_APB_CFG_MASTER_STS_MASK)){
+            #ifdef SATL_TESIC_APB_SLAVE_VERBOSE_RX_LOOP
+            PRINT_APB_STATE("wait rx loop");
+            #endif
+            SATL_WAIT_RX_EVENT_YIELD();
+        }
+    #endif
+    PRINT_APB_STATE("SATL_wait_rx_event exit");
 }
 
 static void SATL_generic_rx(SATL_driver_ctx_t *const ctx,void*buf,unsigned int len){
@@ -191,11 +220,7 @@ static void SATL_generic_rx(SATL_driver_ctx_t *const ctx,void*buf,unsigned int l
         ctx->rx_buf_level=0;
     }
     SATL_TESIC_APB_PRINT_HEXUI(len);
-    while(0 == (SATL_TESIC_APB_GET_CFG() & TESIC_APB_CFG_MASTER_STS_MASK)){
-        #ifdef SATL_TESIC_APB_SLAVE_VERBOSE_RX_LOOP
-        PRINT_APB_STATE("wait rx loop");
-        #endif
-    }
+    SATL_wait_rx_event(ctx);
     assert(SATL_TESIC_APB_OWNER_IS_SLAVE());
     PRINT_APB_STATE("\towner is slave:");
     SATL_TESIC_APB_PRINT_CTX("");
@@ -263,14 +288,12 @@ static void SATL_tx_ack(SATL_driver_ctx_t *const ctx){
     ctx->rx_buf_level=0;
     SATL_TESIC_APB_SET_CNT(0);
     PRINT_APB_STATE("SATL_tx_ack exit (before giving buffer)");
-    SATL_TESIC_APB_SET_CFG(TESIC_APB_CFG_SLAVE_STS_MASK);//set status and give buffer ownership to master side
+    SATL_TESIC_APB_SET_CFG(SATL_SLAVE_IRQ | TESIC_APB_CFG_SLAVE_STS_MASK);//set status and give buffer ownership to master side
 }
 
 static void SATL_rx_ack(SATL_driver_ctx_t *const ctx){
     PRINT_APB_STATE("SATL_rx_ack ");
-    while(0 == (SATL_TESIC_APB_GET_CFG() & TESIC_APB_CFG_MASTER_STS_MASK)){
-        PRINT_APB_STATE("wait rx ack loop");
-    }
+    SATL_wait_rx_event(ctx);
     assert(SATL_TESIC_APB_OWNER_IS_SLAVE());
     assert(0 == SATL_TESIC_APB_GET_CNT());
 }
