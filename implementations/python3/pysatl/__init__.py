@@ -1,7 +1,7 @@
 """Library to transport ISO7816-4 APDUs over anything"""
 import io
 
-__version__ = '1.2.3'
+__version__ = '1.2.4'
 __title__ = 'pysatl'
 __description__ = 'Library to transport ISO7816-4 APDUs over anything'
 __long_description__ = """
@@ -267,6 +267,7 @@ class CAPDU(object):
 
 
     def to_str(self,*,skip_long_data=False):
+        """String representation"""
         out = "C-APDU %02X %02X %02X %02X"%(self.CLA,self.INS,self.P1,self.P2)
         if len(self.DATA) > 0:
             out += " - LC=%5d DATA: "%(len(self.DATA))
@@ -291,6 +292,7 @@ class CAPDU(object):
 
     @staticmethod
     def from_bytes(apdu_bytes):
+        """Create a CAPDU from its bytes representation"""
         # CAPDU FORMATS:
         # CASE1:  CLA INS P1 P2
         # CASE2S: CLA INS P1 P2 LE                 (                       LE  from 01   to   FF)
@@ -356,6 +358,7 @@ class CAPDU(object):
         return CAPDU(CLA=header[0],INS=header[1],P1=header[2],P2=header[3],DATA=DATA,LE=le)
 
     def to_ba(self):
+        """Convert to a bytearray"""
         out = bytearray()
         out.append(self.CLA)
         out.append(self.INS)
@@ -385,14 +388,17 @@ class CAPDU(object):
         return out
 
     def to_bytes(self):
+        """Convert to bytes"""
         return bytes(self.to_ba())
 
     @staticmethod
     def from_hexstr(hexstr):
+        """Convert a string of hex digits to CAPDU"""
         b = Utils.ba(hexstr)
         return CAPDU.from_bytes(b)
 
     def to_hexstr(self,*,skip_long_data=False):
+        """Convert to a string of hex digits"""
         b = self.to_ba()
         header_len = 4
         lc=len(self.DATA)
@@ -402,7 +408,7 @@ class CAPDU(object):
                 header_len = 7
         dat = Utils.hexstr(b[:header_len], separator="")
         if lc:
-            dat += Utils.hexstr(b[header_len:header_len+lc], separator="",skip_long_data=True)
+            dat += Utils.hexstr(b[header_len:header_len+lc], separator="",skip_long_data=skip_long_data)
         if self.LE:
             dat += Utils.hexstr(b[header_len+lc:], separator="")
         return dat
@@ -437,14 +443,16 @@ class RAPDU(object):
 
     @staticmethod
     def from_bytes(apdu_bytes):
+        """Create a RAPDU from its bytes representation"""
         l = len(apdu_bytes)-2
         assert(l >= 0)
-        data = apdu_bytes[0:l-1]
+        data = apdu_bytes[0:l]
         sw1 = apdu_bytes[-2]
         sw2 = apdu_bytes[-1]
         return RAPDU(SW1=sw1,SW2=sw2,DATA=data)
 
     def to_ba(self):
+        """Convert to bytearray"""
         out = bytearray()
         out += self.DATA
         out.append(self.SW1)
@@ -452,17 +460,20 @@ class RAPDU(object):
         return out
 
     def to_bytes(self):
+        """Convert to bytes"""
         return bytes(self.to_ba())
 
     @staticmethod
     def from_hexstr(hexstr):
+        """Convert a string of hex digits to RAPDU"""
         b = Utils.ba(hexstr)
         return RAPDU.from_bytes(b)
 
     def to_hexstr(self,*,skip_long_data=False):
+        """Convert to a string of hex digits"""
         b = self.to_ba()
         if len(b)>16:
-            dat = Utils.hexstr(b[:-2], separator="",skip_long_data=True) + Utils.hexstr(b[-2:], separator="")
+            dat = Utils.hexstr(b[:-2], separator="",skip_long_data=skip_long_data) + Utils.hexstr(b[-2:], separator="")
         else:
             dat = Utils.hexstr(b, separator="")
         return dat
