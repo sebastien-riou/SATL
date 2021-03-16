@@ -20,7 +20,7 @@
                     SATL_TESIC_APB_PRINTF("CNT=%08x\n",SATL_TESIC_APB_GET_CNT());\
                 }while(0)
 
-       
+
         //#define TESIC_APB_GET_BUF_SPY(ctx,idx) tesic_apb_get_buf_spy(ctx,idx)
     #endif
 #else
@@ -65,14 +65,14 @@
         uint32_t out = TESIC_APB_GET_BUF(ctx,idx);
         SATL_TESIC_APB_PRINTF("READ WORD at %3u: 0x%08x\n",idx*4,out);
         return out;
-    } 
+    }
     static void tesic_apb_set_buf_spy(TESIC_APB_t*ctx,unsigned int idx, uint32_t val){
         TESIC_APB_SET_BUF(ctx,idx,val);
         SATL_TESIC_APB_PRINTF("WRITE WORD at %3u: 0x%08x\n",idx*4,val);
-    } 
+    }
     #define SATL_TESIC_APB_GET_BUF(idx)       tesic_apb_get_buf_spy(SATL_TESIC_APB,idx)
     #define SATL_TESIC_APB_SET_BUF(idx,val)   tesic_apb_set_buf_spy(SATL_TESIC_APB,idx,val)
-#else        
+#else
     #define SATL_TESIC_APB_GET_BUF(idx)       TESIC_APB_GET_BUF(SATL_TESIC_APB,idx)
     #define SATL_TESIC_APB_SET_BUF(idx,val)   TESIC_APB_SET_BUF(SATL_TESIC_APB,idx,val)
 #endif
@@ -179,7 +179,7 @@ static void SATL_final_tx(SATL_driver_ctx_t *const ctx,const void*const buf,unsi
 
 static void SATL_wait_rx_event(SATL_driver_ctx_t *const ctx){
     PRINT_APB_STATE("SATL_wait_rx_event");
-    assert(SATL_TESIC_APB_OWNER_IS_SLAVE());//cannot check that when using interrupts, sometimes the other side is faster
+    //assert(SATL_TESIC_APB_OWNER_IS_SLAVE());//cannot check that when using interrupts, sometimes the other side is faster
 
     #ifdef SATL_USE_IRQ
         SATL_WAIT_RX_EVENT();

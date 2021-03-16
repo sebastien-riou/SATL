@@ -137,6 +137,7 @@ static void SATL_switch_to_tx(SATL_driver_ctx_t *const ctx){
     assert(ctx->rx_pos == (SATL_TESIC_APB_GET_CNT()+ctx->rx_buf_level));//check that all data sent by master has been read
     SATL_TESIC_APB_SET_CNT(0);
     SATL_TESIC_APB_SET_CFG(SATL_SLAVE_IRQ);
+    assert(SATL_TESIC_APB_OWNER_IS_SLAVE());
     ctx->rx_pos=SATL_TESIC_APB_INVALID;
     ctx->rx_buf_level=SATL_TESIC_APB_INVALID;
     PRINT_APB_STATE("SATL_switch_to_tx exit");
@@ -219,6 +220,7 @@ static void SATL_wait_rx_event(SATL_driver_ctx_t *const ctx){
             SATL_WAIT_RX_EVENT_YIELD();
         }
     #endif
+    assert(SATL_TESIC_APB_OWNER_IS_SLAVE());
     PRINT_APB_STATE("SATL_wait_rx_event exit");
     //while(1);
 }
@@ -240,10 +242,11 @@ static void SATL_generic_rx(SATL_driver_ctx_t *const ctx,void*buf,unsigned int l
         ctx->rx_pos=0;
         ctx->rx_buf_level=0;
     }else{
-        SATL_TESIC_APB_PRINTF("skip wait for rx event");
+        PRINT_APB_STATE("skip wait for rx event");
+        assert(SATL_TESIC_APB_OWNER_IS_SLAVE());
     }
 
-    assert(SATL_TESIC_APB_OWNER_IS_SLAVE());
+
     PRINT_APB_STATE("\towner is slave:");
     SATL_TESIC_APB_PRINT_CTX("");
     assert(ctx->rx_pos+len-ctx->rx_buf_level<=SATL_TESIC_APB_GET_CNT());//check buffer length requirement
@@ -311,8 +314,8 @@ static void SATL_tx_ack(SATL_driver_ctx_t *const ctx){
     assert(SATL_TESIC_APB_OWNER_IS_SLAVE());
     SATL_TESIC_APB_PRINT_CTX("");
     assert(0==ctx->rx_buf_level);
-    ctx->rx_pos=0;
-    ctx->rx_buf_level=0;
+    ctx->rx_pos=SATL_TESIC_APB_INVALID;
+    ctx->rx_buf_level=SATL_TESIC_APB_INVALID;
     SATL_TESIC_APB_SET_CNT(0);
     PRINT_APB_STATE("SATL_tx_ack exit (before giving buffer)");
     SATL_TESIC_APB_SET_CFG(SATL_SLAVE_IRQ | TESIC_APB_CFG_SLAVE_STS_MASK);//set status and give buffer ownership to master side

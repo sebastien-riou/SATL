@@ -13,6 +13,8 @@ int sockfd = 0;
 //#define SATL_VERBOSE
 //#define SATL_TESIC_APB_MASTER_VERBOSE
 
+#define printk(fmt, ...) printf(fmt, ##__VA_ARGS__)
+
 #define SATL_TEST_MASTER
 #include "satl_test_com.h"
 
@@ -143,9 +145,11 @@ int main(int argc, char *argv[]){
 
     init_socket_api();
     #ifndef SATL_TEST_SOCKET
+        printf("Master use EMU\n");
         sockfd = SATL_socket_master_init(&params);
         emu_init(&com_peripheral);
     #else
+        printf("Master does not use EMU\n");
         memcpy(&com_peripheral,&params,sizeof(params));
     #endif
     uint32_t sblen = SATL_master_init(&SATL_ctx,&com_peripheral);
