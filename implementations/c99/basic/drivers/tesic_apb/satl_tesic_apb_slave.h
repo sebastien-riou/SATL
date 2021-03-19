@@ -66,7 +66,7 @@
     #endif
     #define SATL_WAIT_RX_EVENT_YIELD()
 #else
-    #define SATL_SLAVE_IRQ 0
+    #define SATL_SLAVE_IRQ ((uint32_t)0)
     #ifndef SATL_WAIT_RX_EVENT_YIELD
     #define SATL_WAIT_RX_EVENT_YIELD()
     #endif
@@ -243,7 +243,6 @@ static void SATL_generic_rx(SATL_driver_ctx_t *const ctx,void*buf,unsigned int l
         ctx->rx_buf_level=0;
     }else{
         PRINT_APB_STATE("skip wait for rx event");
-        SATL_TESIC_APB_PRINT_CTX("");
         assert(SATL_TESIC_APB_OWNER_IS_SLAVE());
     }
 
@@ -318,7 +317,6 @@ static void SATL_tx_ack(SATL_driver_ctx_t *const ctx){
     ctx->rx_pos=SATL_TESIC_APB_INVALID;
     ctx->rx_buf_level=SATL_TESIC_APB_INVALID;
     SATL_TESIC_APB_SET_CNT(0);
-    SATL_TESIC_APB_PRINT_CTX("");
     PRINT_APB_STATE("SATL_tx_ack exit (before giving buffer)");
     SATL_TESIC_APB_SET_CFG(SATL_SLAVE_IRQ | TESIC_APB_CFG_SLAVE_STS_MASK);//set status and give buffer ownership to master side
 }
