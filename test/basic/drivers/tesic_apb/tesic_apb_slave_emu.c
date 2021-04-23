@@ -60,13 +60,13 @@ void get_ack(TESIC_APB_t*ctx){
     recv(sockfd, buf, 1,MSG_WAITALL);
     //printf(", received\n");
     ctx->CNT=0;
-    ctx->CFG&=~TESIC_APB_CFG_SLAVE_STS_MASK;
-    ctx->CFG|=TESIC_APB_CFG_MASTER_STS_MASK;
-    ctx->CFG|=TESIC_APB_CFG_OWNER_MASK;//only master can change this bit
+    ctx->CFG &= ~TESIC_APB_CFG_SLAVE_STS_MASK;
+    ctx->CFG |=  TESIC_APB_CFG_MASTER_STS_MASK;
+    ctx->CFG |=  TESIC_APB_CFG_OWNER_MASK;//only master can change this bit
 }
 //#include <sys/ioctl.h>
 //#include <linux/sockios.h>
-//assume we are master
+//assume we are slave
 void get_updated_state(TESIC_APB_t*ctx){
     uint8_t buf[1024];
     int ret;
@@ -129,9 +129,9 @@ void get_updated_state(TESIC_APB_t*ctx){
             //printf("\n");
         }
         ctx->CNT = expected_len;
-        ctx->CFG&=~TESIC_APB_CFG_SLAVE_STS_MASK;
-        ctx->CFG|=TESIC_APB_CFG_MASTER_STS_MASK;
-        ctx->CFG|=TESIC_APB_CFG_OWNER_MASK;//only master can change this bit
+        ctx->CFG &= ~TESIC_APB_CFG_SLAVE_STS_MASK;
+        ctx->CFG |=  TESIC_APB_CFG_MASTER_STS_MASK;
+        ctx->CFG |=  TESIC_APB_CFG_OWNER_MASK;//only master can change this bit
         switch(emu_state){
             case CTPDU_HDR:{
                 assert(ctx->CNT>=12);
@@ -266,8 +266,9 @@ uint32_t emu_rd_buf(TESIC_APB_t*ctx, unsigned int idx){
     return ctx->BUF[idx];
 }
 void emu_wr_cfg(TESIC_APB_t*ctx,uint32_t val){
-    //printf("write CFG=0x%08X\n",val);
-    ctx->CFG = (val & 0xFFFE0000) | 0x0AAB;
+    uint32_t old=ctx->CFG;
+    //printf("write CFG=0x%08X over 0x%08X\n",val,old);//NOTE that OWNER is changed 'instantly' when slave set SLAVE_STS
+    ctx->CFG = (val & 0xFFFE0000) | 0x0AAB | (old & TESIC_APB_CFG_OWNER_MASK);
     set_updated_state(ctx);
 }
 void emu_wr_cnt(TESIC_APB_t*ctx,uint32_t val){

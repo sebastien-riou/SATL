@@ -60,9 +60,9 @@ void get_ack(TESIC_APB_t*ctx){
     recv(sockfd, buf, 1,MSG_WAITALL);
     //printf(", received\n");
     ctx->CNT=0;
-    ctx->CFG&=~TESIC_APB_CFG_MASTER_STS_MASK;
-    ctx->CFG|=TESIC_APB_CFG_SLAVE_STS_MASK;
-    //ctx->CFG&=~TESIC_APB_CFG_OWNER_MASK;//only master can change this bit
+    ctx->CFG &= ~TESIC_APB_CFG_MASTER_STS_MASK;
+    ctx->CFG |=  TESIC_APB_CFG_SLAVE_STS_MASK;
+    ctx->CFG &= ~TESIC_APB_CFG_OWNER_MASK;//only master can change this bit
 }
 //#include <sys/ioctl.h>
 //#include <linux/sockios.h>
@@ -170,6 +170,7 @@ void get_updated_state(TESIC_APB_t*ctx){
 void set_updated_state(TESIC_APB_t*ctx){
     if(ctx->CFG & TESIC_APB_CFG_MASTER_STS_MASK){
         if(0==(emu_CFG & TESIC_APB_CFG_MASTER_STS_MASK)){//send data
+            assert(0== (emu_CFG & TESIC_APB_CFG_OWNER_MASK));
             unsigned int padded_len = ((ctx->CNT + 3) / 4)*4;
             uint8_t *b8 = (uint8_t*)ctx->BUF;
             //printf("sending %u bytes\n",padded_len);
@@ -257,7 +258,7 @@ uint32_t emu_rd_buf(TESIC_APB_t*ctx, unsigned int idx){
 }
 void emu_wr_cfg(TESIC_APB_t*ctx,uint32_t val){
     //printf("write CFG=0x%08X\n",val);
-    ctx->CFG = (val & 0xFFFF0000) | 0x0AAB;
+    ctx->CFG = (val & 0xFF7F0000) | 0x0AAB | (ctx->CFG & TESIC_APB_CFG_SLAVE_ITEN_MASK);
     set_updated_state(ctx);
 }
 void emu_wr_cnt(TESIC_APB_t*ctx,uint32_t val){
