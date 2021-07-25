@@ -1,7 +1,7 @@
 """Library to transport ISO7816-4 APDUs over anything"""
 import io
 
-__version__ = '1.2.4'
+__version__ = '1.2.5'
 __title__ = 'pysatl'
 __description__ = 'Library to transport ISO7816-4 APDUs over anything'
 __long_description__ = """
@@ -300,8 +300,8 @@ class CAPDU(object):
         # CASE3S: CLA INS P1 P2 LC DATA            (LC  from   01 to   FF                       )
         # CASE3E: CLA INS P1 P2 00 LC2 DATA        (LC2 from 0001 to FFFF                       )
         # CASE4S: CLA INS P1 P2 LC DATA LE         (LC  from   01 to   FF  LE2 from 0001 to 0000)
-        # CASE4E: CLA INS P1 P2 LC DATA 00 LE2     (LC  from   01 to   FF, LE2 from 0001 to 0000)
-        # CASE4E: CLA INS P1 P2 00 LC2 DATA LE     (LC2 from 0001 to FFFF, LE  from 01   to   FF)
+        # CASE4E: CLA INS P1 P2 LC DATA 00 LE2     (LC  from   01 to   FF, LE2 from 0001 to 0000) #not standard but tolerated
+        # CASE4E: CLA INS P1 P2 00 LC2 DATA LE     (LC2 from 0001 to FFFF, LE  from 01   to   FF) #not standard but tolerated
         # CASE4E: CLA INS P1 P2 00 LC2 DATA 00 LE2 (LC2 from 0001 to FFFF, LE2 from 0001 to 0000)
         apdu_len=len(apdu_bytes)
         abytes = io.BytesIO(apdu_bytes)
@@ -366,8 +366,9 @@ class CAPDU(object):
         out.append(self.P2)
         LC = len(self.DATA)
         LE = self.LE
+        case4e = (LC>0) && (LE>0) && ((LC > 0xFF) || (LE > 0x100))
         if LC > 0:
-            if LC > 0xFF:
+            if (LC > 0xFF) || case4e :
                 out.append(0x00)
                 out += LC.to_bytes(2, byteorder='big')
             else:
@@ -375,16 +376,19 @@ class CAPDU(object):
             out += self.DATA
         if LE > 0:
             if LE == 0x10000:
-                out.append(0x00)
+                if not case4e:
+                    out.append(0x00)
                 out.append(0x00)
                 out.append(0x00)
             elif LE > 0x100:
-                out.append(0x00)
+                if not case4e:
+                    out.append(0x00)
                 out += LE.to_bytes(2, byteorder='big')
-            elif LE == 0x100:
-                out.append(0x00)
             else:
-                out += LE.to_bytes(1, byteorder='big')
+                if case4e:
+                    out += LE.to_bytes(2, byteorder='big')
+                else:
+                    out += LE.to_bytes(1, byteorder='big')
         return out
 
     def to_bytes(self):
