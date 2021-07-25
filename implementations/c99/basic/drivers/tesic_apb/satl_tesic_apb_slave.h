@@ -115,7 +115,7 @@ static uint32_t SATL_get_rx_level(const SATL_driver_ctx_t *ctx){
 
 static uint32_t SATL_get_tx_level(const SATL_driver_ctx_t *ctx){
     PRINT_APB_STATE("SATL_get_tx_level");
-    return TESIC_APB_BUF_LEN-SATL_TESIC_APB_GET_CNT();
+    return TESIC_APB_BUF_LEN-ctx->cnt;
 }
 
 static uint32_t SATL_slave_init_driver( SATL_driver_ctx_t*const ctx, void *hw){
@@ -146,7 +146,7 @@ static void SATL_switch_to_tx(SATL_driver_ctx_t *const ctx){
     PRINT_APB_STATE("SATL_switch_to_tx exit");
 }
 
-//use CNT register to track progress of buffer write
+//use ctx->cnt to track progress of buffer write
 //this allows to support several calls to SATL_tx to prepare the buffer
 //buffer is actually sent when SATL_tx_flush_switch_to_rx is called
 static void SATL_tx(SATL_driver_ctx_t *const ctx,const void*const buf,unsigned int len){
@@ -169,7 +169,7 @@ static void SATL_tx(SATL_driver_ctx_t *const ctx,const void*const buf,unsigned i
         SATL_TESIC_APB_SET_BUF(base+i,aligned_buf[i]);
     }
     ctx->cnt = (base+nwords)*sizeof(uint32_t);
-    assert(ctx->cnt<=TESIC_APB_BUF_LEN*4);
+    assert(ctx->cnt<=TESIC_APB_BUF_LEN);
     if(TESIC_APB_BUF_LEN == ctx->cnt){//buffer full, send data
         ctx->rx_buf_level=0;
         SATL_TESIC_APB_SET_CNT(ctx->cnt);
@@ -196,7 +196,7 @@ static void SATL_final_tx(SATL_driver_ctx_t *const ctx,const void*const buf,unsi
         const unsigned int base = ctx->cnt / sizeof(uint32_t);
         SATL_TESIC_APB_SET_BUF(base,w);
         ctx->cnt = base * sizeof(uint32_t)+remaining;
-        assert(ctx->cnt <= TESIC_APB_BUF_LEN * 4);
+        assert(ctx->cnt <= TESIC_APB_BUF_LEN);
     }
     if(SATL_TESIC_APB_INVALID==ctx->rx_buf_level){
         SATL_TESIC_APB_SET_CNT(ctx->cnt);
