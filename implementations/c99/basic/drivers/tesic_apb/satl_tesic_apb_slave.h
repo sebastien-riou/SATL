@@ -108,7 +108,6 @@ typedef struct SATL_driver_ctx_struct_t {
 static uint32_t SATL_get_rx_level(const SATL_driver_ctx_t *ctx){
     PRINT_APB_STATE("SATL_get_rx_level");
     if(!SATL_TESIC_APB_OWNER_IS_SLAVE()) return 0;
-    //assert(SATL_TESIC_APB_INVALID!=ctx->rx_pos);
     if(SATL_TESIC_APB_INVALID==ctx->rx_pos) return 0;//we are in TX mode OR RX before actual reception of the frame
     return ctx->cnt-ctx->rx_pos+ctx->rx_buf_level;
 }
@@ -213,12 +212,9 @@ static void SATL_final_tx(SATL_driver_ctx_t *const ctx,const void*const buf,unsi
 static void SATL_wait_rx_event(SATL_driver_ctx_t *const ctx){
     PRINT_APB_STATE("SATL_wait_rx_event");
     #ifdef SATL_USE_IRQ
-        //if(0 == (SATL_TESIC_APB_GET_CFG() & TESIC_APB_CFG_MASTER_STS_MASK)){
-          SATL_WAIT_RX_EVENT();
-        //}
+        SATL_WAIT_RX_EVENT();
         ctx->rx_event_flag = 0;
         SATL_TESIC_APB_SET_CFG(SATL_SLAVE_IRQ);//clear hardware flag
-
     #else
         while(0 == (SATL_TESIC_APB_GET_CFG() & TESIC_APB_CFG_MASTER_STS_MASK)){
             #ifdef SATL_TESIC_APB_SLAVE_VERBOSE_RX_LOOP
@@ -230,7 +226,7 @@ static void SATL_wait_rx_event(SATL_driver_ctx_t *const ctx){
     assert(SATL_TESIC_APB_OWNER_IS_SLAVE());
     PRINT_APB_STATE("SATL_wait_rx_event exit");
     ctx->cnt = SATL_TESIC_APB_GET_CNT();
-    assert(ctx->cnt <= TESIC_APB_BUF_DWORDS*4);
+    assert(ctx->cnt <= TESIC_APB_BUF_LEN);
 }
 
 static void SATL_generic_rx(SATL_driver_ctx_t *const ctx,void*buf,unsigned int len){
@@ -286,6 +282,7 @@ static void SATL_generic_rx(SATL_driver_ctx_t *const ctx,void*buf,unsigned int l
     if(len){
         SATL_TESIC_APB_PRINT_HEXUI(len);
         SATL_TESIC_APB_PRINT_CTX("");
+        assert(len<4);
         outwr += 4*nwords;
         ctx->rx_buf = SATL_TESIC_APB_GET_BUF(base+nwords);
         ctx->rx_buf_level = 4-len;
