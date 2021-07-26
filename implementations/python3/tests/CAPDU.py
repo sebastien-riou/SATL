@@ -17,14 +17,21 @@ if __name__ == "__main__":
         assert(LE <= 0x10000)
         data = os.getrandom(LC)
         hexstr = "00112233"
+        case4 = LC>0 and LE>0
+        case4e = case4 and (LC>0xFF or LE>0x100)
         if LC>0:
-            if LC>0xFF:
+            if LC>0xFF or case4e:
                 hexstr += "00%04X"%LC
             else:
                 hexstr += "%02X" % LC
             hexstr += pysatl.Utils.hexstr(data, separator="")
         if LE>0:
-            if LE == 0x10000:
+            if case4e:
+                if LE == 0x10000:
+                    hexstr += "0000"
+                else:
+                    hexstr += "%04X"%LE
+            elif LE == 0x10000:
                 hexstr += "000000"
             elif LE>0x100:
                 hexstr += "00%04X"%LE
@@ -65,4 +72,3 @@ if __name__ == "__main__":
         for LE in LE_cases:
             print(LC,LE)
             check(*gencase(LC=LC, LE=LE))
-

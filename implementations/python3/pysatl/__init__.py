@@ -1,5 +1,6 @@
 """Library to transport ISO7816-4 APDUs over anything"""
 import io
+import logging
 
 __version__ = '1.2.5'
 __title__ = 'pysatl'
@@ -366,9 +367,9 @@ class CAPDU(object):
         out.append(self.P2)
         LC = len(self.DATA)
         LE = self.LE
-        case4e = (LC>0) && (LE>0) && ((LC > 0xFF) || (LE > 0x100))
+        case4e = (LC>0) and (LE>0) and ((LC > 0xFF) or (LE > 0x100))
         if LC > 0:
-            if (LC > 0xFF) || case4e :
+            if (LC > 0xFF) or case4e :
                 out.append(0x00)
                 out += LC.to_bytes(2, byteorder='big')
             else:
@@ -380,13 +381,13 @@ class CAPDU(object):
                     out.append(0x00)
                 out.append(0x00)
                 out.append(0x00)
-            elif LE > 0x100:
+            elif LE > 0x100 or case4e:
                 if not case4e:
                     out.append(0x00)
                 out += LE.to_bytes(2, byteorder='big')
             else:
-                if case4e:
-                    out += LE.to_bytes(2, byteorder='big')
+                if LE == 0x100:
+                    out += bytearray([0])
                 else:
                     out += LE.to_bytes(1, byteorder='big')
         return out
@@ -401,7 +402,7 @@ class CAPDU(object):
         b = Utils.ba(hexstr)
         return CAPDU.from_bytes(b)
 
-    def to_hexstr(self,*,skip_long_data=False):
+    def to_hexstr(self,*,skip_long_data=False, separator=""):
         """Convert to a string of hex digits"""
         b = self.to_ba()
         header_len = 4
@@ -410,11 +411,11 @@ class CAPDU(object):
             header_len = 5
             if lc>255:
                 header_len = 7
-        dat = Utils.hexstr(b[:header_len], separator="")
+        dat = Utils.hexstr(b[:header_len], separator=separator)
         if lc:
-            dat += Utils.hexstr(b[header_len:header_len+lc], separator="",skip_long_data=skip_long_data)
+            dat += separator + Utils.hexstr(b[header_len:header_len+lc], separator=separator,skip_long_data=skip_long_data)
         if self.LE:
-            dat += Utils.hexstr(b[header_len+lc:], separator="")
+            dat += separator + Utils.hexstr(b[header_len+lc:], separator=separator)
         return dat
 
 class RAPDU(object):
@@ -466,6 +467,44 @@ class RAPDU(object):
     def to_bytes(self):
         """Convert to bytes"""
         return bytes(self.to_ba())
+
+    def swBytes(self):
+        """SW1 and SW2 as bytearray"""
+        out = bytearray()
+        out.append(self.SW1)
+        out.append(self.SW2)
+        return out
+
+    def matchSW(self, swPat):
+        """Check if Status Word match a given hexadecimal pattern, 'X' match anything"""
+        swInt = (self.SW1 << 8) | self.SW2
+        swStr = format(swInt, 'x')
+        swPat = swPat.lower()
+        for i in range(0,len(swPat)):
+            expected = swPat[i]
+            if expected == 'x':
+                continue
+            d = swStr[i]
+            if d != expected:
+                return False
+        return True
+
+    def matchDATA(self, dataPat):
+        """Check if DATA match a given hexadecimal pattern, 'X' match anything"""
+        dataPat = dataPat.lower()
+        for i in range(0,len(dataPat)):
+            expected = dataPat[i]
+            if expected == 'x':
+                continue
+            b = self.DATA[i>>1]
+            if 0 == (i % 2):
+                d = (b >> 4) & 0xF
+            else:
+                d = b & 0xF
+            if d != int(expected,16):
+                logging.debug("Mismatch at char %d: expected %x, got %x"%(i,expected,d))
+                return False
+        return True
 
     @staticmethod
     def from_hexstr(hexstr):
