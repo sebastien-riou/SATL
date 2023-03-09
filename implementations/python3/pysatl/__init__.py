@@ -2,7 +2,7 @@
 import io
 import logging
 
-__version__ = '1.2.5'
+__version__ = '1.2.6'
 __title__ = 'pysatl'
 __description__ = 'Library to transport ISO7816-4 APDUs over anything'
 __long_description__ = """
@@ -547,6 +547,24 @@ class SocketComDriver(object):
             return self._sock.recv(length)
 
     @property
+    def spy_frame_tx(self):
+        """functions called to spy on each tx frame"""
+        return self._impl._spy_frame_tx
+
+    @spy_frame_tx.setter
+    def spy_frame_tx(self, value):
+        self._impl._spy_frame_tx = value
+
+    @property
+    def spy_frame_rx(self):
+        """functions called to spy on each rx frame"""
+        return self._impl._spy_frame_rx
+
+    @spy_frame_rx.setter
+    def spy_frame_rx(self, value):
+        self._impl._spy_frame_rx = value
+
+    @property
     def sock(self):
         """socket: `socket` object used for communication"""
         return self._sock
@@ -622,9 +640,29 @@ class StreamComDriver(object):
         else:
             #if no ack then we have hardware flow control, this is equivalent to infinite buffer size
             self._bufferlen = 1<<32 - 1
+        self._spy_frame_tx = None
+        self._spy_frame_rx = None
 
     @property
-    def sream(self):
+    def spy_frame_tx(self):
+        """functions called to spy on each tx frame"""
+        return self._spy_frame_tx
+
+    @spy_frame_tx.setter
+    def spy_frame_tx(self, value):
+        self._spy_frame_tx = value
+
+    @property
+    def spy_frame_rx(self):
+        """functions called to spy on each rx frame"""
+        return self._spy_frame_rx
+
+    @spy_frame_rx.setter
+    def spy_frame_rx(self, value):
+        self._spy_frame_rx = value
+
+    @property
+    def stream(self):
         """stream: `stream` object used for communication"""
         return self._stream
 
@@ -657,13 +695,17 @@ class StreamComDriver(object):
         if self.ack:
             #print("send ack",flush=True)
             data=bytearray([ord(b'A')] * self.granularity)
+            if self._spy_frame_tx is not None:
+                self._spy_frame_tx(data)
             self._stream.write(data)
 
     def rx_ack(self):
         if self.ack:
             #print("wait ack",flush=True)
-            dat = self._stream.read(self._granularity)
-            #print("ack recieved: ",dat,flush=True)
+            data = self._stream.read(self._granularity)
+            #print("ack recieved: ",data,flush=True)
+            if self._spy_frame_rx is not None:
+                self._spy_frame_rx(data)
 
     def tx(self,data):
         """Transmit data
@@ -674,6 +716,8 @@ class StreamComDriver(object):
         #print("tx ",data,flush=True)
         assert(0==(len(data) % self._sfr_granularity))
         assert(0==(len(data) % self._granularity))
+        if self._spy_frame_tx is not None:
+                self._spy_frame_tx(data)
         self._stream.write(data)
 
     def rx(self,length):
@@ -709,6 +753,8 @@ class StreamComDriver(object):
         #padding due to SFRs granularity
         data = Utils.pad(data,self._sfr_granularity)
         #print("received data length after padding = ",len(data),flush=True)
+        if self._spy_frame_rx is not None:
+            self._spy_frame_rx(data)
         return data
 
 class Utils(object):
