@@ -17,7 +17,7 @@ link_granularity = 4
 ack = True
 skip_init=False
 #side specific parameters
-buffer_length = 16
+buffer_length = 268
 sfr_granularity = 4
 
 
@@ -32,7 +32,7 @@ if len(sys.argv)>2:
 
 # test case
 LC = 0
-LE = 20
+LE = 600
 
 print("%s buffer_length="%sys.argv[1],buffer_length)
 print("%s link_granularity="%sys.argv[1],link_granularity)
@@ -65,10 +65,10 @@ if sys.argv[1]=='slave':
     print("Slave init done")
 
     def slave_com_spy_frame_tx(data):
-        print("SLAVE FRAME TX:",pysatl.Utils.hexstr(data))
+        print("SLAVE FRAME TX %3d bytes:"%len(data),pysatl.Utils.hexstr(data,skip_long_data=True))
 
     def slave_com_spy_frame_rx(data):
-        print("SLAVE FRAME RX:",pysatl.Utils.hexstr(data))
+        print("SLAVE FRAME RX %3d bytes:"%len(data),pysatl.Utils.hexstr(data,skip_long_data=True))
 
     slave_com.spy_frame_tx = slave_com_spy_frame_tx
     slave_com.spy_frame_rx = slave_com_spy_frame_rx
@@ -91,10 +91,10 @@ else:
     master = pysatl.PySatl(is_master=True,com_driver=master_com,skip_init=skip_init)
     
     def com_spy_frame_tx(data):
-        print("MASTER FRAME TX:",pysatl.Utils.hexstr(data))
+        print("MASTER FRAME TX %3d bytes:"%len(data),pysatl.Utils.hexstr(data,skip_long_data=True))
 
     def com_spy_frame_rx(data):
-        print("MASTER FRAME RX:",pysatl.Utils.hexstr(data))
+        print("MASTER FRAME RX %3d bytes:"%len(data),pysatl.Utils.hexstr(data,skip_long_data=True))
 
     master_com.spy_frame_tx = com_spy_frame_tx
     master_com.spy_frame_rx = com_spy_frame_rx
